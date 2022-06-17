@@ -1,0 +1,258 @@
+---
+title: "LASSO_CodonFreq"
+author: "Charlotte Vandermeulen"
+date: "14/06/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(glmnet)
+library(tidyverse)
+library(Biostrings)
+library(ggplot2)
+library(ggpubr)
+library(caret)
+```
+
+## LASSO regression of codon frequencies and CDS length for mRNA half-lifes
+
+In this script, we will perform a LASSO regression using codon frequencies and 
+CDS length as independent variables (X values) and mRNA half-lives as dependent 
+variables (Y values originating from the slamdunk pipeline).
+This script assumes only 1 experiment is used to perform lasso.
+
+First, provide appropriate input paths:
+
+```{r}
+#Output directory
+outdir <- "/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr/lasso/"
+
+#Fasta file of CDS sequences
+cds_fasta <- "/mnt/sharc/shared/sudlab1/General/projects/example_project/cds_hg38_noalt/cds_criGri/cds_crigri_picr.fa"
+
+#Table of transcript to gene ids 
+transcript_to_gene <- "/mnt/sharc/shared/sudlab1/General/mirror/ensembl/criGri_PICR/Cricetulus_griseus_picr.CriGri-PICR.105.ena.tsv"
+
+#Table of half-life for transcripts from slamdunk 
+halflife_table <- "/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr/halflife_2rep_aboveCPM/halflife_filtered2.tsv"
+#Seed number to reproduce results
+seed_num <- 44
+```
+
+## Prepare data for LASSO
+
+Prepare codon Frequencies, CDS length, load transcript/gene IDs table, load 
+stability data.
+Normalize and scale X data before LASSO.
+Log half-life values to normalize data.
+
+```{r}
+#Load CDS
+cds_Cfreq <- readDNAStringSet(cds_fasta,
+                         format = "fasta")
+
+cds_Cfreq_cf <- oligonucleotideFrequency(cds_Cfreq, width = 3, step = 3)
+cds_Cfreq_id <- cds_Cfreq@ranges@NAMES
+row.names(cds_Cfreq_cf) <- cds_Cfreq_id
+cds_lengths = data.frame(transcript_id = cds_Cfreq_id, cds_length = rowSums(cds_Cfreq_cf))
+
+#Load ID table
+tx2gene <- read.table(transcript_to_gene, header=TRUE,
+                      fill = T) %>%
+  select(c(gene_stable_id, transcript_stable_id))
+
+#Stability data
+stability <- read.delim(halflife_table, header = T) %>%
+  select(chr, start, end, transcript_id, length, strand, halflife) %>%
+  inner_join(cds_lengths) %>%
+  inner_join(tx2gene %>% distinct(), by = c("transcript_id" = "transcript_stable_id")) %>% 
+  group_by(gene_stable_id) %>%
+  slice_max(order_by=cds_length, n=1, with_ties = FALSE) %>% ungroup() %>%
+  select(transcript_id, halflife)
+
+#Calculate codon freq
+selected_cf <- cds_Cfreq_cf[stability$transcript_id,]
+
+#Normalize
+normed_cf <- sweep(selected_cf, 1, rowSums(selected_cf), "/")
+# Add the CDS length
+normed_cf <- cbind(normed_cf, rowSums(selected_cf))
+colnames(normed_cf)[ncol(normed_cf)] <- "cds_length"
+
+final_data <- merge(stability, normed_cf, by.x = "transcript_id", by.y = 0)
+#Normalize half-lives
+final_data$halflife <- log(final_data$halflife)
+
+#Scale X values
+final_data[,3:ncol(final_data)] <- scale(final_data[,3:ncol(final_data)])
+```
+
+## Perform LASSO
+
+Different sizes of training/testing sets are generated and performances of these
+sets with LASSO regression are reported. 
+Sampling may not be best and sampling ratios may have to be adapted to have 
+testing sets between 5-10% and 25%.
+
+Then each sets are used to perform LASSO regression with 5 k-fold C-V.
+The script outputs, for each set, performance stats (RMSE, Rsquared of training
+and testing sets) as well as a graph showing lamda vs RMSE and optimal lamda 
+(vertical line) selected for the final best model. 
+Finally, a summary table of all performances stats for all sets is outputted,
+called performances_summary.tsv. 
+N.B. The RMSE/Rsquared_bestModel is the Rsquared of the training for the k-fold
+validation that had the lowest RMSE, which is the final best model automatically
+selected by the caret package.
+
+```{r}
+sampling = c(0.75, 0.8, 0.85, 0.9, 0.95)
+
+summary_models <- matrix(ncol=13, nrow= 0)
+for (i in sampling) {
+  
+  #Splitting data 
+  set.seed(seed_num)
+  index <- createDataPartition(final_data$halflife, p= i,
+                               list = F, times = 1)
+  train_data<-   final_data[index,]
+  test_data <- final_data[-index,]
+  
+  #Checking that training and testing don't share same transcripts
+  shared_transcript <- test_data[(test_data$transcript_id %in% train_data$transcript_id),]
+  
+  #Remove them from the testing, go to training
+  test_data <- test_data[!(test_data$transcript_id %in% train_data$transcript_id),]
+  #Check again to be sure
+  if ((nrow(test_data[(test_data$transcript_id %in% train_data$transcript_id),]) == 0) == F) {
+    print("Training and testing set contain same genes")
+    break}
+  
+  #Add removed rows to train 
+  train_data <- rbind(train_data, shared_transcript)
+  #Check no duplicate, if FALSE something is not ok
+  if ((nrow(distinct(train_data)) == nrow(train_data)) == F) {
+    print("Duplicates in traning set")
+    break}
+  
+  #Check split %
+  if ((nrow(train_data) + nrow(test_data) == nrow(final_data)) == F) {
+    print("Traning and testing data aren't correct")
+    break}
+  how_many <- round((nrow(test_data)/(nrow(final_data)) *100), 0)
+  
+
+  #Creating 5 grouping folds for k-fold cv
+  groud_folds <- groupKFold(train_data$transcript_id, k=5)
+  ctrl_kfold <- trainControl(method = 'cv', index = groud_folds,
+                             savePredictions = "final")
+  
+  # Create vector of lambda
+  lambda_vector <- 10^seq(5, -5, length=500)
+  
+  #Formula for Lasso, (just so transcript_ids aren't in it)
+  my_x_vars <- paste0(colnames(train_data)[3:ncol(train_data)], collapse = "+")
+  formula <- as.formula(paste('halflife ~ ', my_x_vars))
+  
+  #Traning
+  set.seed(seed_num)
+  model1 <- train(formula,
+                  data = train_data,
+                  method= "glmnet",
+                  tuneGrid=expand.grid(alpha=1, lambda = lambda_vector),
+                  trControl=ctrl_kfold)
+  
+  training_perf_model1 <- getTrainPerf(model1)[,1:2]
+  #summary(model1)
+  df_k_folds_stats <- as.data.frame(model1$resample)
+  df_k_folds_stats %>% 
+    ggplot(aes(RMSE,Rsquared)) + 
+    geom_point() + geom_text(aes(label=Resample),hjust=0, vjust=0)
+  ggsave(paste0(outdir,"stats_training_folds_", how_many, ".jpeg"))
+  write.table(df_k_folds_stats, paste0(outdir,"performances_traning_folds_", how_many,".tsv"),
+              quote = F, sep = "\t ", col.names = F)
+  
+  # Optimal tuning parameters
+  lambda_kfold = model1$bestTune$lambda
+  #Saving lamdba plot
+  jpeg(paste0(outdir,"lambdaplot_model_", how_many, ".jpeg"))
+  plot(log(model1$results$lambda), model1$results$RMSE,
+       xlab = "log(lambda)", ylab="RMSE",
+       xlim=c(-6, -1))
+  abline(v=log(lambda_kfold), col="coral")
+  dev.off()
+  
+  #Predict
+  pred_model1 <- predict(model1, 
+                         newdata = select(test_data, - c(halflife, transcript_id)))
+  pred_model1 <- cbind(test_data[,1:2], pred_model1)
+  model1_perf <- data.frame(RMSE=RMSE(pred_model1$pred_model1, pred_model1$halflife),
+                            Rsquared=R2(pred_model1$pred_model1, pred_model1$halflife))
+  
+  #Create summary table
+  get_stats_best_model_stats <- df_k_folds_stats[which.min(df_k_folds_stats$RMSE),]
+  summary_model1 <- cbind(model_sampling = paste0("model_", how_many),
+                          training_perf_model1, 
+                          Lambda = lambda_kfold,
+                          RMSE_bestModel = get_stats_best_model_stats$RMSE,
+                          Rsquared_bestModel = get_stats_best_model_stats$Rsquared,
+                          model1_perf, 
+                          PercentTraining = nrow(train_data)/(nrow(final_data)) *100,
+                          PercentTesting = nrow(test_data)/(nrow(final_data)) *100,
+                          Number_testing = nrow(test_data),
+                          Number_training = nrow(train_data),
+                          TraningRsquared_minus_TestRsquared = (get_stats_best_model_stats$RMSE)-(model1_perf[1,"Rsquared"]))
+  colnames(summary_models) <- colnames(summary_model1)
+  summary_models <- rbind(summary_models, summary_model1)
+}
+
+
+write.table(summary_models, paste0(outdir,"performances_summary", ".tsv"),
+            quote = F, sep = "\t ", row.names = F)
+
+
+```
+
+
+## Determine best training and testing set
+
+Graph showing the number of transcripts in the training set (for the different 
+sizes tested) vs the testing Rsquared value. 
+Models with a higher Rsquared are preferred.
+
+```{r, echo = FALSE}
+summary_models %>%
+  ggplot(aes(Number_training, Rsquared)) + 
+  geom_point() + geom_text(aes(label=model_sampling),hjust=0, vjust=0) +
+  xlab("Number of transcripts in training set") + ylab("Rsquared")
+ggsave(paste0(outdir,"Ntraining_vs_Rsquared", ".jpeg"))
+
+```
+
+Graph showing the difference between the Rsquared obtained for the training and 
+testing sets vs the testing Rsquared.
+The lowest difference between the two Rsquared values is preferred, as it 
+indicates less overfitting. Again, models with a higher testing Rsquared are
+preferred.
+
+
+```{r, echo = FALSE}
+summary_models %>%
+  ggplot(aes(TraningRsquared_minus_TestRsquared,Rsquared)) + 
+  geom_point() + geom_text(aes(label=model_sampling),hjust=0, vjust=0) +
+  xlab("Difference between training and testing Rqsuared") + ylab("Testing Rsquared")
+ggsave(paste0(outdir,"DiffRsquared_vs_Rsquared", ".jpeg"))
+```
+
+Graph showing Rsquared and RMSE for each testing set.
+
+
+```{r}
+summary_models %>%
+  ggplot(aes(RMSE,Rsquared)) + 
+  geom_point() + geom_text(aes(label=model_sampling),hjust=0, vjust=0) +
+  xlab("RMSE") + ylab("Rsquared")
+ggsave(paste0(outdir,"Rsquared_vs_RMSE", ".jpeg"))
+```
+
