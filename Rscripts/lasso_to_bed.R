@@ -18,7 +18,9 @@ library(caret)
 i = 0.85
 
 #Output directory
-outdir <- "/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr/lasso/"
+outdir <- "/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr/lasso/" #change that before gerenating bed files
+#Bed output directory
+outbed <- "/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr/lasso/"
 #Fasta file of CDS sequence
 cds_fasta <- "/mnt/sharc/shared/sudlab1/General/mirror/ensembl/criGri_PICR/Cricetulus_griseus_picr.CriGri-PICR.cds.all.rename.fa.gz"
 #Table of transcript to gene ids
@@ -79,7 +81,7 @@ final_data[,3:ncol(final_data)] <- scale(final_data[,3:ncol(final_data)])
                                list = F, times = 1)
   train_data<-   final_data[index,]
   test_data <- final_data[-index,]
-  
+
   #Checking that training and testing don't share same transcripts
   shared_transcript <- test_data[(test_data$transcript_id %in% train_data$transcript_id),]
 
@@ -156,46 +158,47 @@ final_residual_table %>%
   write.table(paste0(outdir,"stab_residual_one_transcript.tsv"),quote = F, sep = "\t", row.names = F)
 
 #Bed files
+
 number = round(nrow(final_residual_table)*0.20)
 
 #Half-life ranking
 final_residual_table %>% arrange(halflife) %>% head(n = number) %>%
   bind_cols(rep(".", n = nrow(final_residual_table))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/one_transcript/","halflife_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/one_transcript/","halflife_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 final_residual_table %>% arrange(halflife) %>% tail(n = number) %>%
   bind_cols(rep(".", n = nrow(final_residual_table))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/one_transcript/","halflife_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/one_transcript/","halflife_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #Regressed out ranking
 final_residual_table %>% arrange(Residuals) %>% head(n = number) %>%
   bind_cols(rep(".", n = nrow(final_residual_table))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/one_transcript/","residual_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/one_transcript/","residual_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 final_residual_table %>% arrange(Residuals) %>% tail(n = number) %>%
   bind_cols(rep(".", n = nrow(final_residual_table))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/one_transcript/","residual_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/one_transcript/","residual_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #Background
 final_residual_table %>% arrange(halflife) %>%
   bind_cols(rep(".", n = nrow(final_residual_table))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/one_transcript/","background.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/one_transcript/","background.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #Fire INPUTS
 final_residual_table %>% select(transcript_id, halflife) %>%
-  write.table(paste0(outdir,"fire_halflife.txt"), row.names = F, quote = F, sep = "\t")
+  write.table(paste0(outbed,"/one_transcript/","fire_halflife.txt"), row.names = F, quote = F, sep = "\t")
 final_residual_table %>% select(transcript_id, Residuals) %>%
-  write.table(paste0(outdir,"fire_residuals.txt"), row.names = F, quote = F, sep = "\t")
+  write.table(paste0(outbed,"/one_transcript/","fire_residuals.txt"), row.names = F, quote = F, sep = "\t")
 
 final_residual_table %>%
   bind_cols(rep(".", n = nrow(final_residual_table))) %>%
   filter(length < 10000 & length > 6) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   arrange(transcript_id, start) %>%
-  write.table(paste0(outdir,"fire.bed"), row.names = F, quote = F, sep = "\t", col.names = F)
+  write.table(paste0(outbed,"/one_transcript/","fire.bed"), row.names = F, quote = F, sep = "\t", col.names = F)
 
 # Get Residuals  for all transcripts -----------------------------------------------------------
 
@@ -262,38 +265,38 @@ number = round(nrow(all_residuals)*0.20)
 all_residuals %>% arrange(halflife) %>% head(n = number) %>%
   bind_cols(rep(".", n = nrow(all_residuals))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/all_transcripts/","halflife_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/all_transcripts/","halflife_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 all_residuals %>% arrange(halflife) %>% tail(n = number) %>%
   bind_cols(rep(".", n = nrow(all_residuals))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/all_transcripts/","halflife_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/all_transcripts/","halflife_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 
 #Regressed out ranking
 all_residuals %>% arrange(Residuals) %>% head(n = number) %>%
   bind_cols(rep(".", n = nrow(all_residuals))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/all_transcripts/","residual_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/all_transcripts/","residual_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 all_residuals %>% arrange(Residuals) %>% tail(n = number) %>%
   bind_cols(rep(".", n = nrow(all_residuals))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/all_transcripts/","residual_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/all_transcripts/","residual_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #Background
 all_residuals %>% arrange(halflife) %>%
   bind_cols(rep(".", n = nrow(all_residuals))) %>%
   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
-  write.table(paste0(outdir, "/all_transcripts/","background.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
+  write.table(paste0(outbed, "/all_transcripts/","background.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #Fire INPUTS
 all_residuals %>% select(transcript_id, halflife) %>%
-    write.table(paste0(outdir, "/all_transcripts/","fire_halflife.txt"), row.names = F, quote = F, sep = "\t")
+    write.table(paste0(outbed, "/all_transcripts/","fire_halflife.txt"), row.names = F, quote = F, sep = "\t")
 all_residuals %>% select(transcript_id, Residuals) %>%
-    write.table(paste0(outdir, "/all_transcripts/","fire_residuals.txt"), row.names = F, quote = F, sep = "\t")
+    write.table(paste0(outbed, "/all_transcripts/","fire_residuals.txt"), row.names = F, quote = F, sep = "\t")
 
 all_residuals %>%
     bind_cols(rep(".", n = nrow(all_residuals))) %>%
     filter(length < 10000 & length > 6) %>%
     select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
     arrange(transcript_id, start) %>%
-    write.table(paste0(outdir, "/all_transcripts/","fire.bed"), row.names = F, quote = F, sep = "\t", col.names = F)
+    write.table(paste0(outbed, "/all_transcripts/","fire.bed"), row.names = F, quote = F, sep = "\t", col.names = F)
