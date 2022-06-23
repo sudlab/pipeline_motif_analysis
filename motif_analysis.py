@@ -86,6 +86,7 @@ def getfasta(infile, outfile):
     bedtools getfasta -bed %(infile)s
     -fi %(genome_file)s
     -fo %(outfile)s
+    -nameOnly
     '''
     P.run(statement)
 
@@ -161,7 +162,7 @@ def streme2(infiles, outfiles):
 @transform(getfasta,
            regex("(.+)_(highstab|lowstab).fasta"),
            add_inputs("background.fasta"),
-           r"\1_\2.homer.dir/homerMotifs.all.motifs")
+           r"\1_\2_homer.dir/homerMotifs.all.motifs")
 def homer(infiles, outfile):
     '''HOMER motif enrichment analysis
     http://homer.ucsd.edu/homer/motif/fasta.html'''
@@ -182,7 +183,7 @@ def homer(infiles, outfile):
 @transform("fire_*.txt",
        regex("(fire_.+).txt"),
        add_inputs("fire.fasta"),
-       r"\1.txt_FIRE/RNA/\1.txt.signif")
+       r"\1.txt_FIRE/RNA/\1.txt.signif.motifs.rep")
 def fire(infiles, outfiles):
     '''FIRE : https://tavazoielab.c2b2.columbia.edu/FIRE/tutorial.html
     When searching for RNA motifs (typically in 3’UTRs), FIRE examines all 16,384 7-mers. For
