@@ -15,7 +15,3 @@ patience: 3
 #HOMER#
 # options, see findMotifs.pl --help
 motif_sizes: 8,10,12,15
-
-#FIRE#
-# options, see streme --help
-k_mer: 10

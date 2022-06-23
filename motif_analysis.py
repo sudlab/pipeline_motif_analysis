@@ -100,6 +100,8 @@ def streme(infiles, outfiles):
     https://meme-suite.org/meme/doc/streme.html?man_type=web'''
     highstab, lowstab = infiles
     highout, lowout = outfiles
+    highout = P.snip(highout, "/streme.txt")
+    lowout = P.snip(lowout, "/streme.txt")
     patience = PARAMS["patience"]
     min = PARAMS["min_motif_width"]
     max = PARAMS["max_motif_width"]
@@ -118,7 +120,7 @@ def streme(infiles, outfiles):
     --oc %(lowout)s
     '''
     P.run([statement,  statement2],
-    job_memory="6G",
+    job_memory="10G",
     job_threads=1)
 
 @subdivide(getfasta,
@@ -131,6 +133,8 @@ def streme2(infiles, outfiles):
     https://meme-suite.org/meme/doc/streme.html?man_type=web'''
     highstab, lowstab = infiles
     highout, lowout = outfiles
+    highout = P.snip(highout, "/streme.txt")
+    lowout = P.snip(lowout, "/streme.txt")
     patience = PARAMS["patience"]
     min = PARAMS["min_motif_width"]
     max = PARAMS["max_motif_width"]
@@ -150,7 +154,7 @@ def streme2(infiles, outfiles):
     --oc %(lowout)s
     '''
     P.run([statement,  statement2],
-    job_memory="6G",
+    job_memory="10G",
     job_threads=1)
 
 #HOMER
@@ -162,16 +166,16 @@ def homer(infiles, outfile):
     '''HOMER motif enrichment analysis
     http://homer.ucsd.edu/homer/motif/fasta.html'''
     stab, bg = infiles
-    out = outfile
+    out = P.snip(outfile, "homerMotifs.all.motifs")
     length = PARAMS["motif_sizes"]
     statement = '''
     findMotifs.pl %(stab)s fasta %(out)s
     -fasta %(bg)s -rna -len %(length)s
-    -noknown -noweight -nogo -fdr 100
+    -noknown -noweight -nogo -fdr 100 -p 2
     '''
     P.run(statement ,
     job_memory="8G",
-    job_threads=1)
+    job_threads=2)
 
 #FIRE
 @follows(getfasta)
@@ -194,17 +198,16 @@ def fire(infiles, outfiles):
     expression, fasta = infiles
     expression = os.path.join(os.getcwd()+"/"+expression)
     fasta = os.path.join(os.getcwd()+"/"+fasta)
-    k_mer = PARAMS["k_mer"]
     statement = '''
     module load bio/fire &&
     fire --expfiles=%(expression)s
     --exptype=continuous
     --fastafile_rna=%(fasta)s
-    --nodups=1 --k %(k_mer)s
+    --nodups=1 --k 8
     --dodna=0 --dodnarna=0
     '''
     P.run(statement,
-    job_memory="8G",
+    job_memory="10G",
     job_threads=1)
 
 @follows(streme, streme2,homer, fire)
