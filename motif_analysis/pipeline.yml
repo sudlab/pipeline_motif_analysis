@@ -7,11 +7,11 @@ genome_dir: /shared/sudlab1/General/mirror/genomes/index
 
 #STREME#
 # options, see streme --help
-p_value: 0.05
+e_value: 0.1
 min_motif_width: 8
 max_motif_width: 15
-patience: 3
 
 #HOMER#
 # options, see findMotifs.pl --help
 motif_sizes: 8,10,12,15
+fdr: 0.1
