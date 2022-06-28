@@ -195,7 +195,7 @@ def fire(infiles, outfiles):
 
 
 @follows(getfasta)
-@transform("background.fasta",
+@transform(["background.fasta", "fire.fasta"],
            regex("(.+)"),
            r"\1.bg")
 def fasta_to_bg(infile, outfile):
@@ -205,26 +205,66 @@ def fasta_to_bg(infile, outfile):
     '''
     P.run(statement)
 
-
+@follows(fasta_to_bg)
 @transform(homer,
            regex("(.+)_(highstab|lowstab)_homer.dir/homerMotifs.all.motifs"),
-       add_inputs(fasta_to_bg),
-       r"\1_\2_homer.dir/homerMotifs.all.motifs.meme")
+           add_inputs("background.fasta.bg"),
+           r"\1_\2_homer.dir/homerMotifs.all.motifs.meme")
 def homer_to_meme(infiles, outfile):
     '''Convert HOMER output to MEME format for tomtom'''
     homer_file, background = infiles
-    out_dir = P.snip(outfile, "/tomtom.tsv")
+    #out_dir = P.snip(outfile, "/homerMotifs.all.motifs.meme")
     script_path = os.path.join((os.path.dirname(__file__)),
                                "Rscripts",
                                "homer2meme.R")
+    fdr_thresh = length = PARAMS["fdr"]
     statement = '''
     Rscript %(script_path)s
     -i %(homer_file)s
-    -s %(background)s
+    -b %(background)s
+    -t %(fdr_thresh)s
     '''
+    P.run(statement)
+
+@subdivide(fire,
+       regex("(.+).txt.signif.motifs.rep"),
+       [r"\1_highstab.signif.motifs", r"\1_lowstab.signif.motifs"])
+def extract_fire (infile, outfiles):
+    '''Extract significant motifs from FIRE enriched in top or bottom bin'''
+    script_path = os.path.join((os.path.dirname(__file__)),
+                               "Rscripts",
+                               "extract_fire_motifs.R")
+    statement = '''
+    Rscript %(script_path)s
+    -f %(infile)s
+    '''
+    P.run(statement)
+
+@follows(fasta_to_bg)
+@transform(extract_fire,
+           regex("(.+)"),
+           add_inputs("fire.fasta.bg"),
+           r"\1.meme")
+def fire_to_meme(infiles, outfile):
+    '''Convert FIRE output to MEME format for tomtom'''
+    fire_file, background = infiles
+    fire_temp = fire_file+".temp"
+    script_path = os.path.join((os.path.dirname(__file__)),
+                               "Rscripts",
+                               "fire2meme.R")
+    statement = '''
+    while read -r line;
+    do iupac2meme $line -bg %(background)s ;
+    done < %(fire_file)s > %(fire_temp)s &&
+    Rscript %(script_path)s
+    -i %(fire_temp)s
+    -b %(background)s &&
+    rm %(fire_temp)s
+    '''
+    P.run(statement)
 
 
-@follows(streme,fire, homer_to_meme)
+@follows(streme, fasta_to_bg, homer_to_meme ,extract_fire, fire_to_meme)
 def full():
     '''Later alligator'''
     pass

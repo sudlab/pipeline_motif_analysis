@@ -11,16 +11,22 @@ option_list = list(
   make_option(c("-b", "--background-input"),
               type="character",
               dest = "background_path",
-              help="full path directory of background.fasta.bg")
+              help="full path directory of background.fasta.bg"),
+  make_option(c("-t", "--FDR-threshold"),
+              type="numeric",
+              dest = "fdr_threshold",
+              help="FDR threshold value, keep only motifs below this threshold")
+  
 )
 
 arguments <- parse_args(OptionParser(option_list = option_list))
 
-# arguments <- data.frame(homer_path = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_motif_analysis/tomtom/homerMotifs.all.motifs",
-#                         background_path = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_motif_analysis/tomtom/background.fasta.bg"
+# arguments <- data.frame(homer_path = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_motif_analysis/one_transcript/halflife_lowstab_homer.dir/homerMotifs.all.motifs",
+#                         background_path = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_motif_analysis/one_transcript/background.fasta.bg",
+#                         fdr_threshold = 0.1
 #                         )
-# inFile = arguments$homer_path
-# homer.bg = arguments$background_path
+inFile = arguments$homer_path
+homer.bg = arguments$background_path
 
 #converts a Homer .motif PWM/PFM into MEME format
 motif2meme <- function(inFile, homer.bg) {
@@ -62,6 +68,10 @@ motif2meme <- function(inFile, homer.bg) {
         motif.file[motif.index[i]] -> header.string
         strsplit(header.string,split="[\t]") -> prob.string
         strsplit(prob.string[[1]][6],"[,]") -> prob.string3
+        prob.string3[[1]][4] -> prob.fdr
+        str_remove_all(prob.fdr, "FDR:") -> prob.fdr
+        as.numeric(prob.fdr) -> prob.fdr
+        if (prob.fdr > 0.1) {next}
         prob.string3[[1]][3] -> this.p.val
         str_replace(this.p.val,":", "= ") -> this.p.val
         prob.string[[1]][2] -> name.string
@@ -89,6 +99,10 @@ motif2meme <- function(inFile, homer.bg) {
    motif.file[motif.index[n.motifs]] -> header.string
    strsplit(header.string,split="[\t]") -> prob.string
    strsplit(prob.string[[1]][6],"[,]") -> prob.string3
+   prob.string3[[1]][4] -> prob.fdr
+   str_remove_all(prob.fdr, "FDR:") -> prob.fdr
+   as.numeric(prob.fdr) -> prob.fdr
+   if (prob.fdr < 0.1) {
    prob.string3[[1]][3] -> this.p.val
    str_replace(this.p.val,":", "= ") -> this.p.val
    prob.string[[1]][2] -> name.string
@@ -100,6 +114,7 @@ motif2meme <- function(inFile, homer.bg) {
    cat(this.p.val,"\n",file=thisFile, append=TRUE)
    write.table(motif_array,file=thisFile,append=TRUE,col.names=FALSE,row.names=FALSE,sep="\t")
    cat("\n",file=thisFile, append=TRUE)
+   }
    sink()
    close(thisFile) 
    print("matrix has been converted to MEME")
