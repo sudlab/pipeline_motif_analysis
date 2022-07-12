@@ -168,7 +168,7 @@ def homer(infiles, outfile):
     '''
     P.run(statement ,
     job_memory="8G",
-    job_threads=8)
+    job_threads=6)
 
 #FIRE
 @follows(getfasta)
@@ -333,7 +333,7 @@ def tomtom_self(infile, outfile):
 @collate([streme,homer_to_meme,fire_to_meme],
          regex(".*(lowstab|highstab).+"),
          add_inputs("background.fasta.bg"),
-         r"final_motifs/\_1final_motifs.meme")
+         r"final_motifs/\1_final_motifs.meme")
 def tomtom_combine(infiles, outfile):
     '''Merge all motifs together, than run tomtom the merge and eliminate
     redudannt motifs to create the final list of motifs'''
