@@ -58,10 +58,13 @@ On top of the default CGAT setup, the pipeline requires the following
 * R modules:
    - optparse
    - stringr
+   - tools
 
 
 Pipeline output
 ===============
+
+final_motifs directory with lowstab and histab motif list
 
 Code
 ====
@@ -74,11 +77,18 @@ import sqlite3
 import csv
 import re
 import glob
+import pandas
+import shutil
 
 from cgatcore import pipeline as P
+from cgatcore import experiment as E
+from ruffus.combinatorics import *
+
 import cgat.GTF as GTF
 import cgatcore.iotools as IOTools
 from ruffus import *
+from cgat.MEME import MemeMotifFile, MotifCluster
+import PipelineTomtom
 
 #Load config file options
 PARAMS = P.get_parameters(
@@ -154,44 +164,56 @@ def homer(infiles, outfile):
     statement = '''
     findMotifs.pl %(stab)s fasta %(out)s
     -fasta %(bg)s -rna -len %(length)s
-    -noknown -noweight -nogo -fdr 100 -p 2
+    -noknown -noweight -nogo -fdr 100 -p 8
     '''
     P.run(statement ,
     job_memory="8G",
-    job_threads=2)
+    job_threads=8)
 
 #FIRE
 @follows(getfasta)
-@transform("fire_*.txt",
-       regex("(fire_.+).txt"),
+@subdivide(["fire_halflife.txt","fire_residual.txt"],
+       formatter(),
        add_inputs("fire.fasta"),
-       r"\1.txt_FIRE/RNA/\1.txt.signif.motifs.rep")
+       [r"{path[0]}/{basename[0]}.txt.%imer_FIRE/RNA/{basename[0]}.txt.%imer.signif.motifs.rep" % (i,i) for i in range(6,9)])
+       #"{path[0]}/{basename[0]}.txt_FIRE/RNA/{basename[0]}.txt.*.signif.motifs.rep")
+       #[r"\1_FIRE/RNA/\1%imer.signif.motifs.rep" % i for i in range(6,8)])
 def fire(infiles, outfiles):
     '''FIRE : https://tavazoielab.c2b2.columbia.edu/FIRE/tutorial.html
-    When searching for RNA motifs (typically in 3’UTRs), FIRE examines all 16,384 7-mers. For
-    each  7-mer,  the  mutual  information  between  its  profile  and  the  expression  profile  is
-    evaluated. All 7-mers are then sorted based on their information values and a simple and
-    information is not significant, within the sorted list. All 7-mers sorted above these 10 are
-    retained  for  further  analysis,  and  are  henceforth  termed  motif  seeds.  Recall,  that  the
-    information  associated  with  a  particular  7-mer  is  considered  significant  if  and  only  if  it
-    passes  the  randomization  test,  i.e.,  if  it  is  greater  than  all  Nr  random  information  values
-    obtained for this 7-mer profile over Nr randomly shuffled expression profiles. To correct
-    for  multiple  hypothesis  testing,  Nr  is  set  by  default  to  the  number  of  k-mers  initially
-    examined,'''
+    When searching for RNA motifs (typically in 3’UTRs), FIRE examines all
+    16,384 7-mers ad esempio. For each  k-mer,  the  mutual  information
+    between  its  profile  and  the  expression  profile  is evaluated. All
+    k-mers are then sorted based on their information values and a simple and
+    information is not significant, within the sorted list. All k-mers sorted
+    above these 10 are retained  for  further  analysis,  and  are  henceforth
+    termed  motif  seeds.  Recall,  that  the information  associated  with
+    a  particular  k-mer  is  considered  significant  if  and  only  if  it
+    passes  the  randomization  test,  i.e.,  if  it  is  greater  than  all
+    Nr  random  information  values obtained for this k-mer profile over Nr
+    randomly shuffled expression profiles. To correct for  multiple  hypothesis
+    testing,  Nr  is  set  by  default  to  the  number  of  k-mers  initially
+    examined'''
     expression, fasta = infiles
     expression = os.path.join(os.getcwd()+"/"+expression)
     fasta = os.path.join(os.getcwd()+"/"+fasta)
-    statement = '''
-    module load bio/fire &&
-    fire --expfiles=%(expression)s
-    --exptype=continuous
-    --fastafile_rna=%(fasta)s
-    --nodups=1 --k 8
-    --dodna=0 --dodnarna=0
-    '''
-    P.run(statement,
-    job_memory="10G",
-    job_threads=1)
+
+    statements = list()
+    for kmer in range(6,9):
+        ikmer = str(kmer)+"mer"
+        statement = '''
+        module load bio/fire &&
+        fire --expfiles=%(expression)s
+        --exptype=continuous
+        --fastafile_rna=%(fasta)s
+        --nodups=1 --k=%(kmer)s
+        --suffix=%(ikmer)s
+        --dodna=0 --dodnarna=0
+        --oribiasonly=0
+        ''' % locals()
+        statements.append(statement)
+        P.run(statements,
+        job_memory="8G",
+        job_threads=1)
 
 
 @follows(getfasta)
@@ -205,6 +227,7 @@ def fasta_to_bg(infile, outfile):
     '''
     P.run(statement)
 
+#HOMER conversion
 @follows(fasta_to_bg)
 @transform(homer,
            regex("(.+)_(highstab|lowstab)_homer.dir/homerMotifs.all.motifs"),
@@ -226,10 +249,11 @@ def homer_to_meme(infiles, outfile):
     '''
     P.run(statement)
 
+#Fire merge and conversion
 @subdivide(fire,
-       regex("(.+).txt.signif.motifs.rep"),
-       [r"\1_highstab.signif.motifs", r"\1_lowstab.signif.motifs"])
-def extract_fire (infile, outfiles):
+       regex("(.+)([0-9]mer).signif.motifs.rep"),
+       [r"\1_\2_highstab.signif.motifs", r"\1_\2_lowstab.signif.motifs"])
+def extractFire (infile, outfiles):
     '''Extract significant motifs from FIRE enriched in top or bottom bin'''
     script_path = os.path.join((os.path.dirname(__file__)),
                                "Rscripts",
@@ -240,8 +264,21 @@ def extract_fire (infile, outfiles):
     '''
     P.run(statement)
 
+@follows(mkdir("fire.dir"))
+@collate(extractFire,
+        regex(r"fire_(halflife|residual).txt.(?:[0-9]mer).+([0-9]mer)_(.+).signif.motifs"),
+        r"fire.dir/\1_\3.allkmer.signif.motifs")
+def mergeFireKmers(infiles, outfile):
+    '''Merge the fire kmer results together'''
+    input_string = " ".join(infiles)
+    statement= '''
+    cat %(input_string)s > %(output)s
+    '''
+    P.run(statement)
+
+
 @follows(fasta_to_bg)
-@transform(extract_fire,
+@transform(mergeFireKmers,
            regex("(.+)"),
            add_inputs("fire.fasta.bg"),
            r"\1.meme")
@@ -263,8 +300,142 @@ def fire_to_meme(infiles, outfile):
     '''
     P.run(statement)
 
+#Self Tomtom for Homer, Fire and Streme results
+@transform([streme,homer_to_meme,fire_to_meme],
+       regex("(.+)(meme|streme\.txt)"),
+       r"\1tomtom.self")
+def tomtom_self(infile, outfile):
+    '''Self tomtom on motif files'''
+    if (infile.count("streme.txt") >= 1) and (IOTools.get_num_lines(infile) <= 38):
+        E.warn("No motifs - no computation performed")
+        IOTools.touch_file(outfile)
+        return
+    if (infile.count("streme.txt") == 0) and (IOTools.get_num_lines(infile) <= 9):
+        E.warn("No motifs - no computation performed")
+        IOTools.touch_file(outfile)
+        return
+    tomtom_file = infile+".tomtom"
+    tomtom_log = tomtom_file+".log"
+    e_val = PARAMS["thresh_self"]
+    statement = '''
+    tomtom -verbosity 1 -text -norc -thresh %(e_val)s
+    %(infile)s %(infile)s
+    2> %(tomtom_log)s | sed 's/#//' > %(tomtom_file)s
+    '''
+    P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
+    PipelineTomtom.getSeedMotifs(infile, tomtom_file, outfile)
+    statement = '''
+    rm %(tomtom_file)s
+    '''
+    P.run(statement)
 
-@follows(streme, fasta_to_bg, homer_to_meme ,extract_fire, fire_to_meme)
+@follows(mkdir("final_motifs"))
+@collate([streme,homer_to_meme,fire_to_meme],
+         regex(".*(lowstab|highstab).+"),
+         add_inputs("background.fasta.bg"),
+         r"final_motifs/\_1final_motifs.meme")
+def tomtom_combine(infiles, outfile):
+    '''Merge all motifs together, than run tomtom the merge and eliminate
+    redudannt motifs to create the final list of motifs'''
+    motif_files, background = infiles
+    if len(motif_files) == 0:
+        return
+    if len(motif_files) == 1:
+        statement = '''
+        mv %(motif_files)s %(outfile)s
+        '''
+        return
+
+    input_string = " ".join(motif_files)
+    temp_file = P.snip(outfile, "final_motifs.meme")+"merged.motifs"
+    statement = '''
+    meme2meme -bg %(background)s
+    %(input_string)s > %(temp_file)s
+    '''
+    P.run(statement)
+    e_val = PARAMS["thresh_merge"]
+    tomtom_log = outfile+".log"
+    temp_tomtom = P.snip(outfile, "final_motifs.meme")+"merged.motifs.tomtom"
+    statement = '''
+    tomtom -verbosity 1 -text -norc -thresh %(e_val)s
+    %(temp_file)s %(temp_file)s
+    2> %(tomtom_log)s | sed 's/#//' > %(temp_tomtom)s
+    '''
+    P.run(statement)
+    PipelineTomtom.getSeedMotifs(temp_file, temp_tomtom, outfile)
+
+
+# @follows(mkdir("highstab_files", "lowstab_files"))
+# @transform(tomtom_self,
+#            regex(".*(halflife|residual)_(highstab|lowstab)(.+)tomtom.self"),
+#            r"\2_files/\1_\2\3_not_a_directory")
+# def renamingAndCluster(infile, outfile):
+#     '''Renaming and regrouping all motif files into hoghstab and lowstab
+#     directories'''
+#     if IOTools.is_empty(infile):
+#         return
+#
+#     if "fire" in infile:
+#         out_final = outfile.replace(".signif.motifs._not_a_directory", ".fire")
+#         statement = '''
+#         mv %(infile)s %(out_final)s
+#         '''
+#         P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
+#     if "homer" in infile:
+#         out_final = outfile.replace("_homer.dir/homerMotifs.all.motifs._not_a_directory", ".homer")
+#         statement = '''
+#         mv %(infile)s %(out_final)s
+#         '''
+#         P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
+#     if "streme" in infile:
+#         out_final = outfile.replace("_streme.dir/_not_a_directory", ".streme")
+#         statement = '''
+#         mv %(infile)s %(out_final)s
+#         '''
+#         P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
+#     # statement = 'rm -r highstab_files/*.dir lowstab_files/*.dir'
+#     # P.run(statement)
+#
+#  ##############################################################################
+# @follows(renamingAndCluster)
+# def motif_enrichments():
+#     '''Later alligator'''
+#     pass
+#  ##############################################################################
+#
+#
+# @collate(["lowstab_motifs/*","highstab_motifs/*"],
+#          regex("(lowstab_motifs/|highstab_motifs/).+"),
+#          add_inputs("background.fasta.bg"),
+#          r"\1final_motifs.meme")
+
+
+@transform(tomtom_combine,
+           regex("(highstab)(.+)"),
+           r"\1\2.mirna.tomtom")
+def scan_mirna(infile, outfile):
+    '''Scan highstab motifs for miRNAs'''
+    tomtom_log = outfile+".log"
+    e_val = PARAMS["thresh_mirna"]
+    mirna_seeds = PARAMS["mirna_db"]
+    statement = '''
+    tomtom -verbosity 1 -text -norc -thresh %(e_val)s
+    %(infile)s %(mirna_seeds)s
+    2> %(tomtom_log)s | sed 's/#//' > %(outfile)s
+    '''
+    P.run(statement)
+
+# @transform(tomtom_combine,
+#            regex("(lowstab)(_.+)"),
+#            add_inputs(),
+#            r"\1\2.list")
+# def extractListMotifs(infile, outfile):
+#     '''Create list of motifs for linker generator'''
+#     pass
+
+
+
+@follows(scan_mirna)
 def full():
     '''Later alligator'''
     pass
