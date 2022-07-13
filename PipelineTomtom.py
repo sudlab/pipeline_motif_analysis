@@ -8,14 +8,15 @@ import pandas
 
 from cgatcore import pipeline as P
 from cgatcore import experiment as E
-from cgat.MEME import HomerMemeMotifSubclass, MotifCluster
+from HomerMemeMotifSubclass import HomerMotif, HomerMotifFile
+from cgat.MEME import MotifCluster
 import cgatcore.iotools as IOTools
 
 
 
 def getSeedMotifs(motif_file, tomtom_file, outfile):
 
-    ungrouped = MemeMotifFile(IOTools.open_file(motif_file))
+    ungrouped = HomerMotifFile(IOTools.open_file(motif_file))
 
     if len(ungrouped) == 0:
         with IOTools.open_file(outfile, "w") as outf:
@@ -102,7 +103,7 @@ def getSeedMotifs(motif_file, tomtom_file, outfile):
         group.seed.letter_probability_line += " totalHits= %i" % sum(
             [motif.nsites for motif in group])
 
-    output = MemeMotifFile(ungrouped)
+    output = HomerMotifFile(ungrouped)
     output.extend(cluster.seed for cluster in merged_groups)
 
     E.debug("%s outputting" % motif_file)
