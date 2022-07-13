@@ -275,7 +275,7 @@ def mergeFireKmers(infiles, outfile):
     '''Merge the fire kmer results together'''
     input_string = " ".join(infiles)
     statement= '''
-    cat %(input_string)s > %(output)s
+    cat %(input_string)s > %(outfile)s
     '''
     P.run(statement)
 
