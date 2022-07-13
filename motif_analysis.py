@@ -251,8 +251,8 @@ def homer_to_meme(infiles, outfile):
 
 #Fire merge and conversion
 @subdivide(fire,
-       regex("(.+)([0-9]mer).signif.motifs.rep"),
-       [r"\1_\2_highstab.signif.motifs", r"\1_\2_lowstab.signif.motifs"])
+       regex("(.+)txt.([0-9]mer).signif.motifs.rep"),
+       [r"\1\2_highstab.signif.motifs", r"\1\2_lowstab.signif.motifs"])
 def extractFire (infile, outfiles):
     '''Extract significant motifs from FIRE enriched in top or bottom bin'''
     script_path = os.path.join((os.path.dirname(__file__)),
@@ -264,9 +264,12 @@ def extractFire (infile, outfiles):
     '''
     P.run(statement)
 
+#fire_halflife.6mer_highstab.signif.motifs
+
+
 @follows(mkdir("fire.dir"))
 @collate(extractFire,
-        regex(r"fire_(halflife|residual).txt.(?:[0-9]mer).+([0-9]mer)_(.+).signif.motifs"),
+        regex(r"fire_(halflife|residual).txt.(?:[0-9]mer).+([0-9]mer)_(highstab|lowstab).signif.motifs"),
         r"fire.dir/\1_\3.allkmer.signif.motifs")
 def mergeFireKmers(infiles, outfile):
     '''Merge the fire kmer results together'''
