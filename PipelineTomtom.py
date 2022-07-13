@@ -8,7 +8,7 @@ import pandas
 
 from cgatcore import pipeline as P
 from cgatcore import experiment as E
-from cgat.MEME import MemeMotifFile, MotifCluster
+from cgat.MEME import HomerMemeMotifSubclass, MotifCluster
 import cgatcore.iotools as IOTools
 
 
