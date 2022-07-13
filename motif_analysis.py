@@ -333,14 +333,15 @@ def tomtom_self(infile, outfile):
     P.run(statement)
 
 @follows(mkdir("final_motifs"))
-@collate([streme,homer_to_meme,fire_to_meme],
+@collate(tomtom_self,
          regex(".*(lowstab|highstab).+"),
          add_inputs("background.fasta.bg"),
          r"final_motifs/\1_final_motifs.meme")
 def tomtom_combine(infiles, outfile):
-    '''Merge all motifs together, than run tomtom the merge and eliminate
-    redudannt motifs to create the final list of motifs'''
-    motif_files, background = infiles
+    '''Merge all motifs together, than run tomtom on merge and eliminate
+    redundant motifs to create the final list of motifs'''
+    motif_files = list(list(zip(*infiles))[0])
+    background = infiles[1][1]
     if len(motif_files) == 0:
         return
     if len(motif_files) == 1:
