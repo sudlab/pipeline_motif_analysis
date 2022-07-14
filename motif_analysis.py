@@ -332,6 +332,9 @@ def tomtom_self(infile, outfile):
     '''
     P.run(statement)
 
+#Create table of motifs here
+
+
 @follows(mkdir("final_motifs"))
 @collate(tomtom_self,
          regex(".*(lowstab|highstab).+"),
@@ -340,17 +343,21 @@ def tomtom_self(infile, outfile):
 def tomtom_combine(infiles, outfile):
     '''Merge all motifs together, than run tomtom on merge and eliminate
     redundant motifs to create the final list of motifs'''
-    motif_files = list(list(zip(*infiles))[0])
-    background = infiles[1][1]
-    if len(motif_files) == 0:
+    motif_files = [i[0] for i in infiles]
+    background = infiles[0][1]
+    motif_filtered = [x for x in motif_files if IOTools.is_empty(x) == False]
+    if len(motif_filtered) == 0 :
+        E.debug("No motifs present for ", str(infiles))
+        IOTools.touch_file(outfile)
         return
-    if len(motif_files) == 1:
+    if len(motif_filtered) == 1 :
+        E.debug("Only motifs for ", str(motif_filtered))
         statement = '''
-        mv %(motif_files)s %(outfile)s
+        mv %(motif_filtered)s %(outfile)s
         '''
+        P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
         return
-
-    input_string = " ".join(motif_files)
+    input_string = " ".join(motif_filtered)
     temp_file = P.snip(outfile, "final_motifs.meme")+"merged.motifs"
     statement = '''
     meme2meme -bg %(background)s
@@ -369,51 +376,6 @@ def tomtom_combine(infiles, outfile):
     PipelineTomtom.getSeedMotifs(temp_file, temp_tomtom, outfile)
 
 
-# @follows(mkdir("highstab_files", "lowstab_files"))
-# @transform(tomtom_self,
-#            regex(".*(halflife|residual)_(highstab|lowstab)(.+)tomtom.self"),
-#            r"\2_files/\1_\2\3_not_a_directory")
-# def renamingAndCluster(infile, outfile):
-#     '''Renaming and regrouping all motif files into hoghstab and lowstab
-#     directories'''
-#     if IOTools.is_empty(infile):
-#         return
-#
-#     if "fire" in infile:
-#         out_final = outfile.replace(".signif.motifs._not_a_directory", ".fire")
-#         statement = '''
-#         mv %(infile)s %(out_final)s
-#         '''
-#         P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
-#     if "homer" in infile:
-#         out_final = outfile.replace("_homer.dir/homerMotifs.all.motifs._not_a_directory", ".homer")
-#         statement = '''
-#         mv %(infile)s %(out_final)s
-#         '''
-#         P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
-#     if "streme" in infile:
-#         out_final = outfile.replace("_streme.dir/_not_a_directory", ".streme")
-#         statement = '''
-#         mv %(infile)s %(out_final)s
-#         '''
-#         P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
-#     # statement = 'rm -r highstab_files/*.dir lowstab_files/*.dir'
-#     # P.run(statement)
-#
-#  ##############################################################################
-# @follows(renamingAndCluster)
-# def motif_enrichments():
-#     '''Later alligator'''
-#     pass
-#  ##############################################################################
-#
-#
-# @collate(["lowstab_motifs/*","highstab_motifs/*"],
-#          regex("(lowstab_motifs/|highstab_motifs/).+"),
-#          add_inputs("background.fasta.bg"),
-#          r"\1final_motifs.meme")
-
-
 @transform(tomtom_combine,
            regex("(highstab)(.+)"),
            r"\1\2.mirna.tomtom")
@@ -429,17 +391,24 @@ def scan_mirna(infile, outfile):
     '''
     P.run(statement)
 
-# @transform(tomtom_combine,
-#            regex("(lowstab)(_.+)"),
-#            add_inputs(),
-#            r"\1\2.list")
-# def extractListMotifs(infile, outfile):
-#     '''Create list of motifs for linker generator'''
-#     pass
 
 
+@transform(tomtom_combine,
+           suffix("(.+).meme"),
+           r"\1.list")
+def memeToList(infile, outfile):
+    '''Convert meme output to list of sequences for linker finder'''
+    script_path = os.path.join((os.path.dirname(__file__)),
+                               "Rscripts",
+                               "meme2list.R")
+    statement = '''
+    Rscript %(script_path)s
+    -i %(infile)s
+    '''
+    P.run(statement)
 
-@follows(scan_mirna)
+
+@follows(scan_mirna, meme2list)
 def full():
     '''Later alligator'''
     pass
