@@ -394,7 +394,7 @@ def scan_mirna(infile, outfile):
 
 
 @transform(tomtom_combine,
-           suffix("(.+).meme"),
+           suffix(".meme"),
            r"\1.list")
 def memeToList(infile, outfile):
     '''Convert meme output to list of sequences for linker finder'''
@@ -408,7 +408,7 @@ def memeToList(infile, outfile):
     P.run(statement)
 
 
-@follows(scan_mirna, meme2list)
+@follows(scan_mirna, memeToList)
 def full():
     '''Later alligator'''
     pass
