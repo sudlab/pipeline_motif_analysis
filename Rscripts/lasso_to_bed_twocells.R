@@ -12,7 +12,7 @@ library(reshape)
 ############
 i = 0.7 #gives sampling best model 
 
-outdir <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/glm_kfold/interaction_terms/response2/"
+outdir <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/lasso/"
 cds_fasta <- "/mnt/sharc/shared/sudlab1/General/projects/example_project/cds_hg38_noalt/Homo_sapiens.GRCh38.cds.all.fa.gz"
 transcript_to_gene <- "/mnt/sharc/shared/sudlab1/General/mirror/ensembl/hg38_ensembl93/Homo_sapiens.GRCh38.93.IDs.tsv"
 seed_num <- 44
@@ -28,14 +28,14 @@ cds_lengths = data.frame(transcript_id = hg38_id, cds_length = rowSums(hg38_cf))
 
 tx2gene <- read.table(transcript_to_gene, header=TRUE,
                       fill = T) %>%
-  select(c(gene_stable_id, transcript_stable_id))
+  dplyr::select(c(gene_stable_id, transcript_stable_id))
 
 ###Stab data for both cell lines###
 ###################################
 
 stability_a549 <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/slam/halflife_2rep_aboveCPM//halflife_filtered.tsv",
                              header = T) %>%
-  select(chr, start, end, transcript_id, length, strand, halflife) %>%
+  dplyr::select(chr, start, end, transcript_id, length, strand, halflife) %>%
   inner_join(cds_lengths) %>%
   inner_join(tx2gene %>% distinct(), 
              by = c("transcript_id" = "transcript_stable_id")) %>% 
@@ -44,7 +44,7 @@ stability_a549 <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUT
 
 stability_hep <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/slam_downsamplingbg//halflife_2rep_aboveCPM//halflife_filtered.tsv",
                             header = T) %>%
-  select(chr, start, end, transcript_id, length, strand, halflife) %>%
+  dplyr::select(chr, start, end, transcript_id, length, strand, halflife) %>%
   inner_join(cds_lengths) %>%
   inner_join(tx2gene %>% distinct(), 
              by = c("transcript_id" = "transcript_stable_id")) %>% 
@@ -55,7 +55,7 @@ stability_hep <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR
 ###########################
 
 stabilities <- bind_rows(a549 = stability_a549, hep = stability_hep, .id = "cell_line") %>% 
-  select(cell_line, transcript_id, halflife) 
+  dplyr::select(cell_line, transcript_id, halflife) 
 
 #define one-hot encoding function
 dummy <- dummyVars("~ cell_line", data=stabilities)
@@ -156,7 +156,7 @@ final_data[,5:ncol(final_data)] <- scale(final_data[,5:ncol(final_data)])
   
   #Predict
   pred_model1 <- predict(model1, 
-                         newdata = select(test_data, - c(halflife, transcript_id)))
+                         newdata = dplyr::select(test_data, - c(halflife, transcript_id)))
   pred_model1 <- cbind(test_data[,1:4], pred_model1)
   
 
@@ -172,7 +172,7 @@ colnames(testing_residuals)[5] <- "Predictions"
 
 cor.test(x = testing_residuals$halflife, y = testing_residuals$Residuals)
 
-testing_residuals %>% select(transcript_id, cell_linea549, halflife, Residuals) %>%
+testing_residuals %>% dplyr::select(transcript_id, cell_linea549, halflife, Residuals) %>%
   #unite(c(transcript_id, cell_linea549),col = "trans_cell" ,sep = "_") %>%
   ggplot(aes(halflife, Residuals,col = as.factor(cell_linea549)))  +
   geom_point(size = 0.5) + theme_light()  + 
@@ -181,7 +181,7 @@ testing_residuals %>% select(transcript_id, cell_linea549, halflife, Residuals) 
 ggsave(paste0(outdir,"corr_grap", ".jpeg"))
 
 training_residuals <- predict(model1, 
-                              newdata = select(train_data, - c(halflife, transcript_id)))
+                              newdata = dplyr::select(train_data, - c(halflife, transcript_id)))
 training_residuals <- cbind(train_data[,1:4], training_residuals)
 training_residuals$Residuals <- training_residuals$halflife - training_residuals$training_residuals 
 colnames(training_residuals)[5] <- "Predictions"
@@ -193,106 +193,118 @@ final_residual_table$halflife <- exp(final_residual_table$LogHalflife)
 residual_table_a549 <- final_residual_table %>%
   filter(cell_linea549 == 1) %>%
   inner_join(y = (stability_a549 %>% 
-                    select(chr, start, end, transcript_id, length, strand, length)), 
+                    dplyr::select(chr, start, end, transcript_id, length, strand, length)), 
              by = "transcript_id")
 
 residual_table_hep <- final_residual_table %>%
   filter(cell_linehep == 1) %>%
   inner_join(y = (stability_hep %>% 
-                    select(chr, start, end, transcript_id, length, strand, length)), 
+                    dplyr::select(chr, start, end, transcript_id, length, strand, length)), 
              by = "transcript_id")
 
 sd(final_residual_table$Residuals) / mean((final_residual_table$Residuals) )
 
 residual_table_a549 %>% arrange(halflife) %>% 
-  select(- c(cell_linea549, cell_linehep)) %>%
+  dplyr::select(- c(cell_linea549, cell_linehep)) %>%
   write.table(paste0(outdir,"stab_residual_a549.tsv"),quote = F, sep = "\t", row.names = F)
 
 residual_table_hep %>% arrange(halflife) %>%
-  select(- c(cell_linea549, cell_linehep)) %>%
+  dplyr::select(- c(cell_linea549, cell_linehep)) %>%
   write.table(paste0(outdir,"stab_residual_hep.tsv"),quote = F, sep = "\t", row.names = F)
+
+residual_table_hep <- read_delim(paste0(outdir,"stab_residual_hep.tsv"))
+residual_table_a549 <- read_delim(paste0(outdir,"stab_residual_a549.tsv"))
+
+bind_rows(list(a549 = residual_table_a549, hepg2 = residual_table_hep),.id = "cell_line") %>% 
+  select(transcript_id, LogHalflife, Residuals, cell_line) %>%
+ggplot(aes(LogHalflife, Residuals,col = as.factor(cell_line)))  +
+  geom_point(size = 0.5, alpha = 0.5, shape = 3) 
++ theme_light()  + 
+  stat_smooth(method="lm", color = "black") +
+  xlab("Predicted half-life") + ylab("Observed half-life")
+ggsave(paste0(outdir,"corr_grap", ".jpeg"))
 
 
 # Generate bed files ------------------------------------------------------
 
 number_a549 = round(nrow(residual_table_a549)*0.20)
 number_hep = round(nrow(residual_table_hep)*0.20)
-out_a549 <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_motif_analysis/"
-dir.create("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_motif_analysis/one_transcript")
-out_hep <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_motif_analysis/"
-dir.create("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_motif_analysis/one_transcript")
+out_a549 <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/"
+dir.create(paste0(out_a549,"one_transcript"))
+out_hep <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/"
+dir.create(paste0(out_hep,"one_transcript"))
 #residual_table_a549 %>% arrange(halflife) %>% tail(n = number) %>% head()
 #residual_table_a549 %>% arrange(halflife) %>% head(n = number) %>% tail()
 
 #Half-life ranking
 residual_table_a549 %>% arrange(halflife) %>% head(n = number_a549) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/one_transcript/","halflife_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 residual_table_a549 %>% arrange(halflife) %>% tail(n = number_a549) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/one_transcript/","halflife_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 residual_table_hep %>% arrange(halflife) %>% head(n = number_hep) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/one_transcript/","halflife_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 residual_table_hep %>% arrange(halflife) %>% tail(n = number_hep) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/one_transcript/","halflife_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #Regressed out ranking 
 residual_table_a549 %>% arrange(Residuals) %>% head(n = number_a549) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/one_transcript/","residual_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 residual_table_a549 %>% arrange(Residuals) %>% tail(n = number_a549) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/one_transcript/","residual_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 residual_table_hep %>% arrange(Residuals) %>% head(n = number_hep) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/one_transcript/","residual_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 residual_table_hep %>% arrange(Residuals) %>% tail(n = number_hep) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/one_transcript/","residual_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #Background
 residual_table_a549 %>% arrange(halflife) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/one_transcript/","background.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 residual_table_hep %>% arrange(halflife) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/one_transcript/","background.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #FIRE
-residual_table_a549 %>% select(transcript_id, halflife) %>%
+residual_table_a549 %>% dplyr::select(transcript_id, halflife) %>%
   write.table(paste0(out_a549, "/one_transcript/","fire_halflife.txt"), row.names = F, quote = F, sep = "\t")
-residual_table_a549 %>% select(transcript_id, Residuals) %>%
+residual_table_a549 %>% dplyr::select(transcript_id, Residuals) %>%
   write.table(paste0(out_a549, "/one_transcript/","fire_residual.txt"), row.names = F, quote = F, sep = "\t")
 residual_table_a549 %>%
   bind_cols(rep(".", n = nrow(residual_table_a549))) %>%
   filter(length < 10000 & length > 6) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   arrange(transcript_id, start) %>%
   write.table(paste0(out_a549,"/one_transcript/","fire.bed"), row.names = F, quote = F, sep = "\t", col.names = F)
 
-residual_table_hep %>% select(transcript_id, halflife) %>%
+residual_table_hep %>% dplyr::select(transcript_id, halflife) %>%
   write.table(paste0(out_hep,"/one_transcript/","fire_halflife.txt"), row.names = F, quote = F, sep = "\t")
-residual_table_hep %>% select(transcript_id, Residuals) %>%
+residual_table_hep %>% dplyr::select(transcript_id, Residuals) %>%
   write.table(paste0(out_hep,"/one_transcript/","fire_residual.txt"), row.names = F, quote = F, sep = "\t")
 residual_table_hep %>%
   bind_cols(rep(".", n = nrow(residual_table_hep))) %>%
   filter(length < 10000 & length > 6) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   arrange(transcript_id, start) %>%
   write.table(paste0(out_hep,"/one_transcript/","fire.bed"), row.names = F, quote = F, sep = "\t", col.names = F)
 
@@ -303,12 +315,12 @@ residual_table_hep %>%
 #Getting rid of transcripts with double 3'UTR entries
 stability_a549_all <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/slam/halflife_2rep_aboveCPM//halflife_filtered.tsv",
                                  header = T) %>%
-  select(chr, start, end, transcript_id, length, strand, halflife) %>%
+  dplyr::select(chr, start, end, transcript_id, length, strand, halflife) %>%
   distinct()
 
 stability_hep_all <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/slam_downsamplingbg//halflife_2rep_aboveCPM//halflife_filtered.tsv",
                                 header = T) %>% 
-  select(chr, start, end, transcript_id, length, strand, halflife) %>% 
+  dplyr::select(chr, start, end, transcript_id, length, strand, halflife) %>% 
   distinct()
 
 
@@ -327,7 +339,7 @@ dev.off()
 #                               "ENST00000370128", "ENST00000368935",
 #                               "ENST00000400479", "ENST00000262160"))   %>% 
 #   bind_cols(rep(".", n = nrow(stability_a549_all))) %>%
-#   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+#   dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
 #   arrange(transcript_id, start) %>%
 #   write.table("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/bed_testing/test_sorted.bed", row.names = F, quote = F, sep = "\t", col.names = F)
 # 
@@ -336,7 +348,7 @@ dev.off()
 #                               "ENST00000370128", "ENST00000368935",
 #                               "ENST00000400479", "ENST00000262160"))   %>% 
 #   bind_cols(rep(".", n = nrow(stability_a549_all))) %>%
-#   select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+#   dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
 #   #arrange(transcript_id, start) %>%
 #   write.table("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/bed_testing/test.bed", row.names = F, quote = F, sep = "\t", col.names = F)
 
@@ -351,7 +363,7 @@ dev.off()
 ###########################
 
 stabilities_all <- bind_rows(a549 = stability_a549_all, hep = stability_hep_all, .id = "cell_line") %>% 
-  select(cell_line, transcript_id, halflife) 
+  dplyr::select(cell_line, transcript_id, halflife) 
 
 #define one-hot encoding function
 dummy <- dummyVars("~ cell_line", data=stabilities_all)
@@ -390,7 +402,7 @@ final_stab_all[,5:ncol(final_stab_all)] <- scale(final_stab_all[,5:ncol(final_st
 
 #Predict
 pred_bestModel_all <- predict(model1, 
-                              newdata = select(final_stab_all, - c(halflife, transcript_id)))
+                              newdata = dplyr::select(final_stab_all, - c(halflife, transcript_id)))
 
 
 pred_bestModel_all <- cbind(final_stab_all[,1:4],
@@ -404,7 +416,7 @@ pred_bestModel_all$halflife <- exp(pred_bestModel_all$LogHalflife)
 
 comparison_testing_all_only_one_transcript <- merge(pred_bestModel_all, final_residual_table, by = 1)
 cor.test(comparison_testing_all_only_one_transcript$Predictions.x, comparison_testing_all_only_one_transcript$Predictions.y)
-#0.7737
+#0.777
 jpeg(paste0(outdir, "pearson_one_transcript_all_transcript", ".jpeg"))
 comparison_testing_all_only_one_transcript %>% 
   ggscatter(x = "Predictions.x", y = "Predictions.y", 
@@ -417,7 +429,7 @@ dev.off()
 residual_table_a549_all <- pred_bestModel_all %>%
   filter(cell_linea549 == 1) %>%
   inner_join(y = (stability_a549_all %>% 
-                    select(chr, start, end, transcript_id, length, strand, length)), 
+                    dplyr::select(chr, start, end, transcript_id, length, strand, length)), 
              by = "transcript_id")
 
 
@@ -425,97 +437,98 @@ residual_table_a549_all <- pred_bestModel_all %>%
 residual_table_hep_all <- pred_bestModel_all %>%
   filter(cell_linehep == 1) %>%
   inner_join(y = (stability_hep_all %>% 
-                    select(chr, start, end, transcript_id, length, strand, length)), 
+                    dplyr::select(chr, start, end, transcript_id, length, strand, length)), 
              by = "transcript_id")
 
 residual_table_a549_all %>% arrange(halflife) %>% 
-  select(- c(cell_linea549, cell_linehep)) %>%
+  dplyr::select(- c(cell_linea549, cell_linehep)) %>%
   write.table(paste0(outdir,"stab_residual_a549_all.tsv"),quote = F, sep = "\t", row.names = F)
 
 residual_table_hep_all %>% arrange(halflife) %>%
-  select(- c(cell_linea549, cell_linehep)) %>%
+  dplyr::select(- c(cell_linea549, cell_linehep)) %>%
   write.table(paste0(outdir,"stab_residual_hep_all.tsv"),quote = F, sep = "\t", row.names = F)
 
-
+residual_table_hep_all <- read_delim(paste0(outdir,"stab_residual_hep_all.tsv"))
+residual_table_a549_all <- read_delim(paste0(outdir,"stab_residual_a549_all.tsv"))
 #Bed files
 
 number_a549 = round(nrow(residual_table_a549_all)*0.20)
 number_hep = round(nrow(residual_table_hep_all)*0.20)
-out_a549 <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_motif_analysis/"
-dir.create("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_motif_analysis/all_transcripts")
-out_hep <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_motif_analysis/"
-dir.create("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_motif_analysis/all_transcripts")
+dir.create(paste0(out_a549,"all_transcripts"))
+dir.create(paste0(out_hep,"all_transcripts"))
 
 
 #Half-life ranking
 residual_table_a549_all %>% arrange(halflife) %>% head(n = number_a549) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549_all))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/all_transcripts/","halflife_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 residual_table_a549_all %>% arrange(halflife) %>% tail(n = number_a549) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549_all))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/all_transcripts/","halflife_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 residual_table_hep_all %>% arrange(halflife) %>% head(n = number_hep) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep_all))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/all_transcripts/","halflife_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 residual_table_hep_all %>% arrange(halflife) %>% tail(n = number_hep) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep_all))) %>% 
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/all_transcripts/","halflife_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #Regressed out ranking 
 residual_table_a549_all %>% arrange(Residuals) %>% head(n = number_a549) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549_all))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/all_transcripts/","residual_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 residual_table_a549_all %>% arrange(Residuals) %>% tail(n = number_a549) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549_all))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/all_transcripts/","residual_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 residual_table_hep_all %>% arrange(Residuals) %>% head(n = number_hep) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep_all))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/all_transcripts/","residual_lowstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 residual_table_hep_all %>% arrange(Residuals) %>% tail(n = number_hep) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep_all))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/all_transcripts/","residual_highstab.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #Background
 residual_table_a549_all %>% arrange(halflife) %>%
   bind_cols(rep(".", n = nrow(residual_table_a549_all))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_a549, "/all_transcripts/","background.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 residual_table_hep_all %>% arrange(halflife) %>%
   bind_cols(rep(".", n = nrow(residual_table_hep_all))) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   write.table(paste0(out_hep, "/all_transcripts/","background.bed"), col.names = F, quote = F, row.names = F, sep = "\t")
 
 #FIRE
-residual_table_a549_all %>% select(transcript_id, halflife) %>%
+residual_table_a549_all <- residual_table_a549_all[!duplicated(residual_table_a549_all$transcript_id), ] 
+residual_table_a549_all %>% dplyr::select(transcript_id, halflife) %>% distinct() %>% 
   write.table(paste0(out_a549, "/all_transcripts/","fire_halflife.txt"), row.names = F, quote = F, sep = "\t")
-residual_table_a549_all %>% select(transcript_id, Residuals) %>%
+residual_table_a549_all %>% dplyr::select(transcript_id, Residuals) %>%  distinct() %>%
   write.table(paste0(out_a549, "/all_transcripts/","fire_residual.txt"), row.names = F, quote = F, sep = "\t")
-residual_table_a549_all %>%
+residual_table_a549_all %>% distinct() %>%
   bind_cols(rep(".", n = nrow(residual_table_a549_all))) %>%
   filter(length < 10000 & length > 6) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   arrange(transcript_id, start) %>%
   write.table(paste0(out_a549,"/all_transcripts/","fire.bed"), row.names = F, quote = F, sep = "\t", col.names = F)
 
-residual_table_hep_all %>% select(transcript_id, halflife) %>%
+residual_table_hep_all <- residual_table_hep_all[!duplicated(residual_table_hep_all$transcript_id), ] 
+residual_table_hep_all %>% dplyr::select(transcript_id, halflife) %>%  distinct() %>%
   write.table(paste0(out_hep,"/all_transcripts/","fire_halflife.txt"), row.names = F, quote = F, sep = "\t")
-residual_table_hep_all %>% select(transcript_id, Residuals) %>%
+residual_table_hep_all %>% dplyr::select(transcript_id, Residuals) %>%  distinct() %>%
   write.table(paste0(out_hep,"/all_transcripts/","fire_residual.txt"), row.names = F, quote = F, sep = "\t")
-residual_table_hep_all %>%
+residual_table_hep_all %>% distinct() %>%
   bind_cols(rep(".", n = nrow(residual_table_hep_all))) %>%
   filter(length < 10000 & length > 6) %>%
-  select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
+  dplyr::select(chr, start, end, transcript_id, paste0("...", ncol(.)),strand) %>%
   arrange(transcript_id, start) %>%
   write.table(paste0(out_hep,"/all_transcripts/","fire.bed"), row.names = F, quote = F, sep = "\t", col.names = F)
 

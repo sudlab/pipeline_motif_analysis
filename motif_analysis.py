@@ -59,6 +59,7 @@ On top of the default CGAT setup, the pipeline requires the following
    - optparse
    - stringr
    - tools
+   - universalmotif
 
 
 Pipeline output
@@ -212,7 +213,7 @@ def fire(infiles, outfiles):
         ''' % locals()
         statements.append(statement)
         P.run(statements,
-        job_memory="8G",
+        job_memory="10G",
         job_threads=1)
 
 

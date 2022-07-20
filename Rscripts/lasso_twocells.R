@@ -10,7 +10,7 @@ library(caret)
 
 ###INPUTS###
 ############
-outdir <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/glm_kfold/interaction_terms/response2/"
+outdir <- "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/lasso/"
 cds_fasta <- "/mnt/sharc/shared/sudlab1/General/projects/example_project/cds_hg38_noalt/Homo_sapiens.GRCh38.cds.all.fa.gz"
 transcript_to_gene <- "/mnt/sharc/shared/sudlab1/General/mirror/ensembl/hg38_ensembl93/Homo_sapiens.GRCh38.93.IDs.tsv"
 seed_num <- 44
@@ -26,58 +26,71 @@ cds_lengths = data.frame(transcript_id = hg38_id, cds_length = rowSums(hg38_cf))
 
 tx2gene <- read.table(transcript_to_gene, header=TRUE,
                       fill = T) %>%
-  select(c(gene_stable_id, transcript_stable_id))
+  dplyr::select(c(gene_stable_id, transcript_stable_id))
 
 ###Stab data for both cell lines###
 ###################################
 
-stability_a549 <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/slam/halflife_2rep_aboveCPM//halflife_filtered.tsv",
+stability_a549 <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/slam/halflife_2rep_aboveCPM/halflife_filtered.tsv",
                              header = T) %>%
-  select(chr, start, end, transcript_id, length, strand, halflife) %>%
+  dplyr::select(chr, start, end, transcript_id, length, strand, halflife) %>%
   inner_join(cds_lengths) %>%
   inner_join(tx2gene %>% distinct(), 
              by = c("transcript_id" = "transcript_stable_id")) %>% 
   group_by(gene_stable_id) %>%
   slice_max(order_by=cds_length, n=1, with_ties = FALSE)  %>% ungroup()
 
-stability_hep <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/slam_downsamplingbg//halflife_2rep_aboveCPM//halflife_filtered.tsv",
+stability_hep <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/slam_downsamplingbg/halflife_2rep_aboveCPM/halflife_filtered.tsv",
                             header = T) %>%
-  select(chr, start, end, transcript_id, length, strand, halflife) %>%
+  dplyr::select(chr, start, end, transcript_id, length, strand, halflife) %>%
   inner_join(cds_lengths) %>%
   inner_join(tx2gene %>% distinct(), 
              by = c("transcript_id" = "transcript_stable_id")) %>% 
   group_by(gene_stable_id) %>%
   slice_max(order_by=cds_length, n=1, with_ties = FALSE)  %>% ungroup()
+
+merge(stability_a549, stability_hep, by = c(1:6), 
+      suffixes = c("_a549", "_hep")) %>% nrow()
+
+#Mean h-l
+mean(stability_a549$halflife)
+median(stability_a549$halflife)
+mean(stability_hep$halflife)
+median(stability_hep$halflife)
 
 #Spearman R
-jpeg(paste0(outdir, "spearman_a549_hep", ".jpeg"))
+jpeg(paste0(outdir, "pearson_a549_hep", ".jpeg"))
 merge(stability_a549, stability_hep, by = c(1:6), 
       suffixes = c("_a549", "_hep")) %>% 
   ggscatter(x = "halflife_hep", y = "halflife_a549", 
             add = "reg.line", conf.int = TRUE, size = 0.5,
-            cor.coef = TRUE, cor.method = "spearman",
-            xlab = "Half-life A549", ylab = "Half-life HepG2")
+            cor.coef = TRUE, cor.method = "pearson",
+            xlab = "Half-life A549", ylab = "Half-life HepG2") +
+  theme_classic(base_size = 16) 
 dev.off()
 
 #H-l density plot 
 jpeg(paste0(outdir, "density_a549_hep", ".jpeg"))
 merge(stability_a549, stability_hep, by = c(1:6), 
       suffixes = c("_A549", "_HepG2")) %>%
-  select(transcript_id, halflife_A549, halflife_HepG2) %>%
+  dplyr::select(transcript_id, halflife_A549, halflife_HepG2) %>%
   melt() %>%
   ggplot(aes(x=value, fill=variable)) +
   geom_density(alpha=.25) +
-  theme_classic() +
+  theme_classic(base_size = 16) +
   labs(fill = "Cell line", x = "Half-life")
 dev.off()
 
-
+#Number shared
+merge(stability_a549, stability_hep, by = c(1:6), 
+      suffixes = c("_A549", "_HepG2")) %>%
+  dplyr::select(transcript_id, halflife_A549, halflife_HepG2) %>% nrow()
 
 ###Creating merged table### 
 ###########################
 
 stabilities <- bind_rows(a549 = stability_a549, hep = stability_hep, .id = "cell_line") %>% 
-  select(cell_line, transcript_id, halflife) 
+  dplyr::select(cell_line, transcript_id, halflife) 
 
 #Check duplicates 
 if (stabilities %>% filter(cell_line == 1) %>%
@@ -202,7 +215,7 @@ for (i in sampling) {
   
   #Predict
   pred_model1 <- predict(model1, 
-                         newdata = select(test_data, - c(halflife, transcript_id)))
+                         newdata = dplyr::select(test_data, - c(halflife, transcript_id)))
   pred_model1 <- cbind(test_data[,1:4], pred_model1)
   model1_perf <- data.frame(RMSE=RMSE(pred_model1$pred_model1, pred_model1$halflife),
                             Rsquared=R2(pred_model1$pred_model1, pred_model1$halflife))

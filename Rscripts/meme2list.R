@@ -10,6 +10,7 @@ option_list = list(
               help="input file in meme format"),
   make_option(c("-l", "--lax-score"),
               action="store_true",
+              default=TRUE,
               dest = "score",
               help="If option added, icscore is used to select sequences from the 
               motif PWM, otherwise only 1 sequence is selected from it.
