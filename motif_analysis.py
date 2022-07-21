@@ -142,7 +142,7 @@ def streme(infiles, outfiles):
     --n %(highstab)s
     --minw %(min)s --maxw %(max)s --rna
     --thresh %(eval)s
-    --evalue %(eval)s
+    --evalue
     --patience 0
     --oc %(lowout)s
     '''
@@ -212,9 +212,9 @@ def fire(infiles, outfiles):
         --oribiasonly=0
         ''' % locals()
         statements.append(statement)
-        P.run(statements,
-        job_memory="10G",
-        job_threads=1)
+    P.run(statements,
+    job_memory="10G",
+    job_threads=1)
 
 
 @follows(getfasta)
