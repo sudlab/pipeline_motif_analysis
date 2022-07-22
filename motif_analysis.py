@@ -254,7 +254,7 @@ def homer_to_meme(infiles, outfile):
 @subdivide(fire,
        regex("(.+)txt.([0-9]mer).signif.motifs.rep"),
        [r"\1\2_highstab.signif.motifs", r"\1\2_lowstab.signif.motifs"])
-def extractFire (infile, outfiles):
+def extractFire(infile, outfiles):
     '''Extract significant motifs from FIRE enriched in top or bottom bin'''
     script_path = os.path.join((os.path.dirname(__file__)),
                                "Rscripts",
@@ -378,8 +378,8 @@ def tomtom_combine(infiles, outfile):
 
 
 @transform(tomtom_combine,
-           regex("(highstab)(.+)"),
-           r"\1\2.mirna.tomtom")
+           regex("(.+).meme"),
+           r"\1.mirna.tomtom")
 def scan_mirna(infile, outfile):
     '''Scan highstab motifs for miRNAs'''
     tomtom_log = outfile+".log"
@@ -394,22 +394,26 @@ def scan_mirna(infile, outfile):
 
 
 
-@transform(tomtom_combine,
-           suffix(".meme"),
-           r"\1.list")
-def memeToList(infile, outfile):
+@collate([tomtom_combine,scan_mirna],
+           regex("(final_motifs/highstab|final_motifs/lowstab)(.+)"),
+           r"\1_final_motifs.list")
+def memeToList(infiles, outfile):
     '''Convert meme output to list of sequences for linker finder'''
+    motif_file, tomtom_file = infiles
+    options = PARAMS["options"]
     script_path = os.path.join((os.path.dirname(__file__)),
                                "Rscripts",
-                               "meme2list.R")
+                               "filter4mirna_meme2list.R")
     statement = '''
     Rscript %(script_path)s
-    -i %(infile)s
+    -i %(motif_file)s
+    -t %(tomtom_file)s
+    %(options)s
     '''
     P.run(statement)
 
 
-@follows(scan_mirna, memeToList)
+@follows(memeToList)
 def full():
     '''Later alligator'''
     pass
