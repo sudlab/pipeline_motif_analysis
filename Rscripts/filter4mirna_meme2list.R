@@ -14,7 +14,7 @@ option_list = list(
               help="tomtom output file scanning miRNA seeds in highstab motifs"),
   make_option(c("-l", "--lax-score"),
               action="store_true",
-              default=TRUE,
+              default=FALSE,
               dest = "score",
               help="If option added, icscore is used to select sequences from the 
               motif PWM, otherwise only 1 sequence is selected from it.
@@ -260,7 +260,7 @@ tomtom <- (tomtom[1:(nrow(tomtom)-4),])
 to_remove <- unique(tomtom$Query_ID)
 
 log_file <- paste0(length(to_remove)," motifs match miRNA seeds. Total motifs: ", length(motif_file))
-log_file <- cbind(log_file, to_remove)
+#log_file <- c(log_file, to_remove)
 
 out <- str_replace(arguments$input, ".meme", ".list")
 out_log <- paste0(out, ".log")

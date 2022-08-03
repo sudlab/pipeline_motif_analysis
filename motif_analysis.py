@@ -162,21 +162,28 @@ def homer(infiles, outfile):
     stab, bg = infiles
     out = P.snip(outfile, "homerMotifs.all.motifs")
     length = PARAMS["motif_sizes"]
+    iter = PARAMS["FDRiteration"]
     statement = '''
     findMotifs.pl %(stab)s fasta %(out)s
     -fasta %(bg)s -rna -len %(length)s
-    -noknown -noweight -nogo -fdr 100 -p 8
+    -noknown -noweight -nogo -fdr %(iter)s -p 8
     '''
     P.run(statement ,
     job_memory="8G",
     job_threads=6)
+
+
+if (PARAMS["8kmer"] == True):
+    end_kmer = 9
+else:
+    end_kmer = 7
 
 #FIRE
 @follows(getfasta)
 @subdivide(["fire_halflife.txt","fire_residual.txt"],
        formatter(),
        add_inputs("fire.fasta"),
-       [r"{path[0]}/{basename[0]}.txt.%imer_FIRE/RNA/{basename[0]}.txt.%imer.signif.motifs.rep" % (i,i) for i in range(6,9)])
+       [r"{path[0]}/{basename[0]}.txt.%imer_FIRE/RNA/{basename[0]}.txt.%imer.signif.motifs.rep" % (i,i) for i in range(6,end_kmer)])
        #"{path[0]}/{basename[0]}.txt_FIRE/RNA/{basename[0]}.txt.*.signif.motifs.rep")
        #[r"\1_FIRE/RNA/\1%imer.signif.motifs.rep" % i for i in range(6,8)])
 def fire(infiles, outfiles):

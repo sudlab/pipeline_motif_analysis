@@ -15,20 +15,30 @@ max_motif_width: 12
 #HOMER#
 # options, see findMotifs.pl --help
 motif_sizes: 6,8,10,12
+#FDR threshold
 fdr: 0.1
+#N° of iteration for FDR
+FDRiteration: 100
 
 #FIRE#
-kmer_sizes: 6,7,8 #For the moment hard encoded,max possible is 8
+#Does 6 and 7 kmers automaticallym but 8 kmers only for small sets
+8kmer: 0
 
 #Tomtom#
 #Merging motif files#
-#q-value threshold for scanning redundant motifs from streme, homer and fire out
+#e-value threshold for scanning redundant motifs from streme, homer and fire out
 thresh_self: 0.1
-#q-value threshold for merging motifs files together
+#e-value threshold for merging motifs files together
 thresh_merge: 0.1
 
 #Scanning for miRNA seeds in motifs
-#Full path of miRNA seeds database in meme format
-mirna_db: /shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.meme
+#Full path of miRNA !!seeds!! database in meme format
+mirna_db: /shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.meme
 #q-value threshold for tomtom
-thresh_mirna: 0.5
+thresh_mirna: 0.5 #default
+
+#Extract sequences from meme PWM
+#If only the consensus sequence of the motif has to be extracted, then no
+#option is necessary, if several need to be extracted from one motif (based on
+#icscore, see universal vignette), then add option '-l'
+options: ''
