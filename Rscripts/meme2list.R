@@ -7,10 +7,14 @@ option_list = list(
   make_option(c("-i", "--input-meme"),
               type="character",
               dest = "input",
-              help="input file in meme format"),
+              help="highstab input file in meme format"),
+  make_option(c("-t", "--tomtom-mirna"),
+              type="character",
+              dest = "tomtom_mirna",
+              help="tomtom output file scanning miRNA seeds in highstab motifs"),
   make_option(c("-l", "--lax-score"),
               action="store_true",
-              default=TRUE,
+              default=FALSE,
               dest = "score",
               help="If option added, icscore is used to select sequences from the 
               motif PWM, otherwise only 1 sequence is selected from it.
@@ -19,9 +23,10 @@ option_list = list(
 
 arguments <- parse_args(OptionParser(option_list = option_list))
 
+# setwd("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/one_transcript/")
 # arguments <- data.frame(score = FALSE,
-#                         input = "final_motifs/highstab_final_motifs.meme")
-
+#                         input = "final_motifs/highstab_final_motifs.meme",
+#                         tomtom_mirna = "final_motifs/highstab_final_motifs.mirna.tomtom")
 
 #Modify read_meme function so it accepts spaces in the file 
 #Otherwise it throws an error
@@ -248,37 +253,54 @@ assignInNamespace("read_meme", read_meme2, ns = "universalmotif")
 #Now reading file 
 motif_file <- read_meme2(arguments$input)
 
-motif_sequences <- character()
-for (i in 1:length(motif_file)) {
-  #print(i)
-  #print(motif_file[[i]]@consensus)
-  if (arguments$score) {
-    #icscore threshold used
-    motifs_i <- get_matches(motif_file[[i]]@motif, motif_file[[i]]@icscore)
-    motif_sequences <- cbind(motif_sequences, motifs_i)
-  } else {
-    #Only 1
-    max_score <- motif_score(motif_file[[i]]@motif)[2]
-    motifs_i <- get_matches(motif_file[[i]]@motif, max_score) 
-    motif_sequences <- cbind(motif_sequences, motifs_i)
-  }
+tomtom <- read.table(arguments$tomtom_mirna, fill = T, header = T)
 
-}
+tomtom <- (tomtom[1:(nrow(tomtom)-4),])
+
+to_remove <- unique(tomtom$Query_ID)
+
+log_file <- paste0(length(to_remove)," motifs match miRNA seeds. Total motifs: ", length(motif_file))
+#log_file <- c(log_file, to_remove)
 
 out <- str_replace(arguments$input, ".meme", ".list")
+out_log <- paste0(out, ".log")
+write.table(log_file,file = out_log, sep = "\n", col.names = F, quote = F,
+            row.names = F)
+
+
+motif_sequences <- character()
+for (i in 1:length(motif_file)) {
+  if(grepl(x = arguments$input, pattern = "lowstab", fixed = TRUE)) {
+    
+    if (arguments$score) {
+      #icscore threshold used
+      motifs_i <- get_matches(motif_file[[i]]@motif, motif_file[[i]]@icscore)
+      motif_sequences <- cbind(motif_sequences, motifs_i)
+    } else {
+      #Only 1
+      max_score <- motif_score(motif_file[[i]]@motif)[2]
+      motifs_i <- get_matches(motif_file[[i]]@motif, max_score) 
+      motif_sequences <- cbind(motif_sequences, motifs_i)
+    }
+  }
   
+  #Getting rif of miRNA matches for highstab
+  if ( !(motif_file[[i]]@name %in% to_remove)  & grepl(x = arguments$input, pattern = "highstab", fixed = TRUE) ) {
+    
+    if (arguments$score) {
+      #icscore threshold used
+      motifs_i <- get_matches(motif_file[[i]]@motif, motif_file[[i]]@icscore)
+      motif_sequences <- cbind(motif_sequences, motifs_i)
+    } else {
+      #Only 1
+      max_score <- motif_score(motif_file[[i]]@motif)[2]
+      motifs_i <- get_matches(motif_file[[i]]@motif, max_score) 
+      motif_sequences <- cbind(motif_sequences, motifs_i)
+    }
+    
+  }
+}
+
 write.table(motif_sequences,file = out, sep = "\n", col.names = F, quote = F,
             row.names = F)
 
-# y = 1
-# while(motif_diff[y,2] < motif_diff[y+1,2]) {
-#   max_score <- motif_diff[y+1,1]
-#   motif_score(motif_file[[i]]@motif)
-#   get_matches(motif_file[[i]]@motif, motif_score(motif_file[[i]]@motif)[2])
-#   get_matches(motif_file[[i]]@motif, max_score)
-#     motif_diff <- data.frame(score =  get_scores(motif_file[[i]])[1:99],
-#                             diff = abs(diff(get_scores(motif_file[[i]])[1:100])))
-#   motifs <- get_matches(motif_file[[i]]@motif, max_score)
-#   print("Passing motifs are : ", motifs)
-#   
-#   y = y+1

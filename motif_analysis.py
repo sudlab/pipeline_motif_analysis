@@ -176,7 +176,7 @@ def homer(infiles, outfile):
 if (PARAMS["8kmer"] == True):
     end_kmer = 9
 else:
-    end_kmer = 7
+    end_kmer = 8
 
 #FIRE
 @follows(getfasta)
@@ -272,7 +272,6 @@ def extractFire(infile, outfiles):
     '''
     P.run(statement)
 
-#fire_halflife.6mer_highstab.signif.motifs
 
 
 @follows(mkdir("fire.dir"))
@@ -391,7 +390,7 @@ def scan_mirna(infile, outfile):
     '''Scan highstab motifs for miRNAs'''
     tomtom_log = outfile+".log"
     e_val = PARAMS["thresh_mirna"]
-    mirna_seeds = PARAMS["mirna_db"]
+    mirna_seeds = PARAMS["mirna_meme_db"]
     statement = '''
     tomtom -verbosity 1 -text -norc -thresh %(e_val)s
     %(infile)s %(mirna_seeds)s
@@ -401,20 +400,20 @@ def scan_mirna(infile, outfile):
 
 
 
-@collate([tomtom_combine,scan_mirna],
+@transform(tomtom_combine,
            regex("(final_motifs/highstab|final_motifs/lowstab)(.+)"),
            r"\1_final_motifs.list")
-def memeToList(infiles, outfile):
+def memeToList(infile, outfile):
     '''Convert meme output to list of sequences for linker finder'''
-    motif_file, tomtom_file = infiles
+    mirna_seeds = PARAMS["mirna_seeds_db"]
     options = PARAMS["options"]
     script_path = os.path.join((os.path.dirname(__file__)),
                                "Rscripts",
                                "filter4mirna_meme2list.R")
     statement = '''
     Rscript %(script_path)s
-    -i %(motif_file)s
-    -t %(tomtom_file)s
+    -i %(infile)s
+    -m %(mirna_seeds)s
     %(options)s
     '''
     P.run(statement)

@@ -8,10 +8,10 @@ option_list = list(
               type="character",
               dest = "input",
               help="highstab input file in meme format"),
-  make_option(c("-t", "--tomtom-mirna"),
+  make_option(c("-m", "--mirna-seeds"),
               type="character",
-              dest = "tomtom_mirna",
-              help="tomtom output file scanning miRNA seeds in highstab motifs"),
+              dest = "miRNA_seeds",
+              help="miRNA seeds target sequences"),
   make_option(c("-l", "--lax-score"),
               action="store_true",
               default=FALSE,
@@ -26,7 +26,7 @@ arguments <- parse_args(OptionParser(option_list = option_list))
 # setwd("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/one_transcript/")
 # arguments <- data.frame(score = FALSE,
 #                         input = "final_motifs/highstab_final_motifs.meme",
-#                         tomtom_mirna = "final_motifs/highstab_final_motifs.mirna.tomtom")
+#                         miRNA_seeds = "/mnt/sharc/shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.sequences")
 
 #Modify read_meme function so it accepts spaces in the file 
 #Otherwise it throws an error
@@ -253,40 +253,14 @@ assignInNamespace("read_meme", read_meme2, ns = "universalmotif")
 #Now reading file 
 motif_file <- read_meme2(arguments$input)
 
-tomtom <- read.table(arguments$tomtom_mirna, fill = T, header = T)
-
-tomtom <- (tomtom[1:(nrow(tomtom)-4),])
-
-to_remove <- unique(tomtom$Query_ID)
-
-log_file <- paste0(length(to_remove)," motifs match miRNA seeds. Total motifs: ", length(motif_file))
-#log_file <- c(log_file, to_remove)
-
-out <- str_replace(arguments$input, ".meme", ".list")
-out_log <- paste0(out, ".log")
-write.table(log_file,file = out_log, sep = "\n", col.names = F, quote = F,
-            row.names = F)
-
+seeds_sequences <- (read.table(arguments$miRNA_seeds, header = F))
+seeds_list <- list()
+for(i in 1:nrow(seeds_sequences)) {        
+  seeds_list[[i]] <- seeds_sequences[ i, 1]
+}
 
 motif_sequences <- character()
 for (i in 1:length(motif_file)) {
-  if(grepl(x = arguments$input, pattern = "lowstab", fixed = TRUE)) {
-    
-    if (arguments$score) {
-      #icscore threshold used
-      motifs_i <- get_matches(motif_file[[i]]@motif, motif_file[[i]]@icscore)
-      motif_sequences <- cbind(motif_sequences, motifs_i)
-    } else {
-      #Only 1
-      max_score <- motif_score(motif_file[[i]]@motif)[2]
-      motifs_i <- get_matches(motif_file[[i]]@motif, max_score) 
-      motif_sequences <- cbind(motif_sequences, motifs_i)
-    }
-  }
-  
-  #Getting rif of miRNA matches for highstab
-  if ( !(motif_file[[i]]@name %in% to_remove)  & grepl(x = arguments$input, pattern = "highstab", fixed = TRUE) ) {
-
   if (arguments$score) {
     #icscore threshold used
     motifs_i <- get_matches(motif_file[[i]]@motif, motif_file[[i]]@icscore)
@@ -297,10 +271,37 @@ for (i in 1:length(motif_file)) {
     motifs_i <- get_matches(motif_file[[i]]@motif, max_score) 
     motif_sequences <- cbind(motif_sequences, motifs_i)
   }
+}
 
-}
-}
-  
-write.table(motif_sequences,file = out, sep = "\n", col.names = F, quote = F,
+matches <- lapply(seeds_list, FUN = function(x) motif_sequences[str_which(motif_sequences, x)])
+
+matches <- matches[lapply(matches,length) >0]
+
+matches <- Reduce(c, matches) %>% Reduce(c, .) %>% unique() 
+
+
+filtered_sequences <- motif_sequences[!(motif_sequences %in% matches)]
+poly <- length(str_which(filtered_sequences, "AAUAAA"))
+filtered_sequences <- filtered_sequences[-(str_which(filtered_sequences, "AAUAAA"))]
+
+log <- c(paste0("Total number of motifs: ", length(motif_file)), 
+         paste0("Total number of motifs sequences: ", length(motif_sequences)),
+         paste0("Number of sequences matching miRNA seed targets: ", length(matches)),
+         paste0("Number of sequences with polyA signal AUAAA: ", length(poly)),
+         "Matching motifs to miRNA seeds:")
+
+
+out <- str_replace(arguments$input, ".meme", ".list")
+
+write.table(filtered_sequences ,file = out, sep = "\n", col.names = F, quote = F,
             row.names = F)
+
+write.table(c(log,matches), 
+            paste0(out, ".log") ,
+            sep = "\n",
+            col.names = F,
+            row.names = F,
+            quote = F)
+
+
 

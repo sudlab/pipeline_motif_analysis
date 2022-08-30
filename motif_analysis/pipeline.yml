@@ -33,7 +33,7 @@ thresh_merge: 0.1
 
 #Scanning for miRNA seeds in motifs
 #Full path of miRNA !!seeds!! database in meme format
-mirna_db: /shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.meme
+mirna_meme_db: /shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.meme
 #q-value threshold for tomtom
 thresh_mirna: 0.5 #default
 
@@ -42,3 +42,5 @@ thresh_mirna: 0.5 #default
 #option is necessary, if several need to be extracted from one motif (based on
 #icscore, see universal vignette), then add option '-l'
 options: ''
+#Full path to miRNA seeds seuqnces list
+mirna_seeds_db: /shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.sequences
