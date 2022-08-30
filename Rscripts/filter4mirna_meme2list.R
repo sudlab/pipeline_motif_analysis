@@ -293,9 +293,15 @@ log <- c(paste0("Total number of motifs: ", length(motif_file)),
 
 out <- str_replace(arguments$input, ".meme", ".list")
 
-write.table(filtered_sequences ,file = out, sep = "\n", col.names = F, quote = F,
+#Writting filtered list for highstab and non-filtered one for lowstab
+if  (grepl(x = arguments$input, pattern = "highstab", fixed = TRUE) ) {
+  write.table(filtered_sequences ,file = out, sep = "\n", col.names = F, quote = F,
             row.names = F)
-
+} else {
+  write.table(motif_sequences ,file = out, sep = "\n", col.names = F, quote = F,
+              row.names = F)
+ }
+  
 write.table(c(log,matches), 
             paste0(out, ".log") ,
             sep = "\n",
