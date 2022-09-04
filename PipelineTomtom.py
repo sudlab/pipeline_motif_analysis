@@ -85,9 +85,11 @@ def getSeedMotifs(motif_file, tomtom_file, outfile):
         distances = tomtom.loc[cur_cluster.seed.primary_id]
         for other_cluster in groups:
 
-            evals = distances.loc[other_cluster.keys()]["E-value"]
+            #evals = distances.loc[other_cluster.keys()]["E-value"]
+            qvals = distances.loc[other_cluster.keys()]["q-value"]
 
-            if (evals < 0.1).all():
+
+            if (qvals < 0.1).all():
                 to_merge.append(other_cluster)
 
         for cluster in to_merge:

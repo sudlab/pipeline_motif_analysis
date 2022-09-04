@@ -26,21 +26,20 @@ FDRiteration: 100
 
 #Tomtom#
 #Merging motif files#
-#e-value threshold for scanning redundant motifs from streme, homer and fire out
+#q-value threshold for scanning redundant motifs from streme, homer and fire out
 thresh_self: 0.1
-#e-value threshold for merging motifs files together
+#q-value threshold for merging motifs files together
 thresh_merge: 0.1
 
-#Scanning for miRNA seeds in motifs
-#Full path of miRNA !!seeds!! database in meme format
-mirna_meme_db: /shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.meme
+#Tomtom comparison of final list of motifs to remove similar motifs in highstab
+#and 1lowstab
 #q-value threshold for tomtom
-thresh_mirna: 0.5 #default
+thresh_final: 0.1
 
 #Extract sequences from meme PWM
 #If only the consensus sequence of the motif has to be extracted, then no
 #option is necessary, if several need to be extracted from one motif (based on
 #icscore, see universal vignette), then add option '-l'
 options: ''
-#Full path to miRNA seeds seuqnces list
-mirna_seeds_db: /shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.sequences
+#Full path to miRNA seeds in meme  format
+mirna_seeds_db: /shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.meme

@@ -47,6 +47,7 @@ topbin = round(max(signif.motifs.rep$V2) * 0.8)
 
 #High stab
   highest.motif %>% filter(V2 >= topbin) %>%
+    filter(V7 >= 0.25) %>%
   select(V1) %>% distinct() %>% pull(V1)  %>%
   str_remove_all("\\.")   %>%
     str_replace_all("T", "U") %>%
@@ -57,6 +58,7 @@ topbin = round(max(signif.motifs.rep$V2) * 0.8)
 
 #Low stab
 highest.motif %>% filter(V2 <= lowbin) %>%
+  filter(V7 >= 0.25) %>%
   select(V1) %>% distinct() %>% pull(V1)  %>%
   str_remove_all("\\.")  %>%
     str_replace_all("T", "U") %>%

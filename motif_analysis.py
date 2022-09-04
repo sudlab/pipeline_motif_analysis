@@ -231,7 +231,7 @@ def fire(infiles, outfiles):
 def fasta_to_bg(infile, outfile):
     '''Get markov bg for fasta'''
     statement = '''
-    fasta-get-markov %(infile)s > %(outfile)s
+    fasta-get-markov %(infile)s -norc > %(outfile)s
     '''
     P.run(statement)
 
@@ -326,9 +326,9 @@ def tomtom_self(infile, outfile):
         return
     tomtom_file = infile+".tomtom"
     tomtom_log = tomtom_file+".log"
-    e_val = PARAMS["thresh_self"]
+    q_val = PARAMS["thresh_self"]
     statement = '''
-    tomtom -verbosity 1 -text -norc -thresh %(e_val)s
+    tomtom -verbosity 1 -text -norc -thresh %(q_val)s
     %(infile)s %(infile)s
     2> %(tomtom_log)s | sed 's/#//' > %(tomtom_file)s
     '''
@@ -371,11 +371,11 @@ def tomtom_combine(infiles, outfile):
     %(input_string)s > %(temp_file)s
     '''
     P.run(statement)
-    e_val = PARAMS["thresh_merge"]
+    q_val = PARAMS["thresh_merge"]
     tomtom_log = outfile+".log"
     temp_tomtom = P.snip(outfile, "final_motifs.meme")+"merged.motifs.tomtom"
     statement = '''
-    tomtom -verbosity 1 -text -norc -thresh %(e_val)s
+    tomtom -verbosity 1 -text -norc -thresh %(q_val)s
     %(temp_file)s %(temp_file)s
     2> %(tomtom_log)s | sed 's/#//' > %(temp_tomtom)s
     '''
@@ -383,28 +383,28 @@ def tomtom_combine(infiles, outfile):
     PipelineTomtom.getSeedMotifs(temp_file, temp_tomtom, outfile)
 
 
-@transform(tomtom_combine,
-           regex("(.+).meme"),
-           r"\1.mirna.tomtom")
-def scan_mirna(infile, outfile):
-    '''Scan highstab motifs for miRNAs'''
+@merge(tomtom_combine,
+       r"final_motifs/highstab_vs_lowstab.tomom")
+def high_vs_low(infiles, outfile):
+    '''Scan highstab motifs vs lowstab motifs'''
     tomtom_log = outfile+".log"
-    e_val = PARAMS["thresh_mirna"]
-    mirna_seeds = PARAMS["mirna_meme_db"]
+    E.debug(infiles)
+    motif1, motif2 = infiles
+    qval = PARAMS["thresh_final"]
     statement = '''
-    tomtom -verbosity 1 -text -norc -thresh %(e_val)s
-    %(infile)s %(mirna_seeds)s
+    tomtom -verbosity 1 -text -norc -thresh %(qval)s
+    %(motif1)s %(motif2)s
     2> %(tomtom_log)s | sed 's/#//' > %(outfile)s
     '''
     P.run(statement)
 
-
-
 @transform(tomtom_combine,
            regex("(final_motifs/highstab|final_motifs/lowstab)(.+)"),
+           add_inputs(high_vs_low),
            r"\1_final_motifs.list")
-def memeToList(infile, outfile):
+def memeToList(infiles, outfile):
     '''Convert meme output to list of sequences for linker finder'''
+    motifs, tomtom = infiles
     mirna_seeds = PARAMS["mirna_seeds_db"]
     options = PARAMS["options"]
     script_path = os.path.join((os.path.dirname(__file__)),
@@ -412,12 +412,12 @@ def memeToList(infile, outfile):
                                "filter4mirna_meme2list.R")
     statement = '''
     Rscript %(script_path)s
-    -i %(infile)s
+    -i %(motifs)s
     -m %(mirna_seeds)s
+    -t %(tomtom)s
     %(options)s
     '''
     P.run(statement)
-
 
 @follows(memeToList)
 def full():

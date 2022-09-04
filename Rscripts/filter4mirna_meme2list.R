@@ -1,21 +1,26 @@
 library("universalmotif")
 library("optparse")
 library("stringr")
+library("tidyverse")
 
 #Options parser
 option_list = list(
   make_option(c("-i", "--input-meme"),
               type="character",
               dest = "input",
-              help="highstab input file in meme format"),
+              help="high/lowstab input file in meme format"),
   make_option(c("-m", "--mirna-seeds"),
               type="character",
               dest = "miRNA_seeds",
-              help="miRNA seeds target sequences"),
+              help="miRNA seeds target motifs in meme format"),
+  make_option(c("-t", "--tomtom-file"),
+              type="character",
+              dest = "tomtom",
+              help="tomtom results of highstab vs lowstab"),
   make_option(c("-l", "--lax-score"),
               action="store_true",
               default=FALSE,
-              dest = "score",
+              dest = "if added, almost all possible sequences from are outputted",
               help="If option added, icscore is used to select sequences from the 
               motif PWM, otherwise only 1 sequence is selected from it.
               See universalmotif vignette for details.")
@@ -23,10 +28,12 @@ option_list = list(
 
 arguments <- parse_args(OptionParser(option_list = option_list))
 
-# setwd("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/one_transcript/")
+# setwd("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/one_transcript///")
 # arguments <- data.frame(score = FALSE,
 #                         input = "final_motifs/highstab_final_motifs.meme",
-#                         miRNA_seeds = "/mnt/sharc/shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.sequences")
+#                         miRNA_seeds = "/mnt/sharc/shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.meme",
+#                         tomtom = "final_motifs/highstab_vs_lowstab.tomom")
+# 
 
 #Modify read_meme function so it accepts spaces in the file 
 #Otherwise it throws an error
@@ -55,6 +62,7 @@ read_meme2 <- function (file, skip = 0, readsites = FALSE, readsites.meta = FALS
   raw_lines <- raw_lines[!grepl("------------", raw_lines)]
   check_meme_version(raw_lines)
   alph <- get_meme_alph(raw_lines)
+  alph <- "RNA"
   alph.len <- get_meme_alph_len(alph)
   alph.split <- switch(alph, DNA = DNA_BASES, RNA = RNA_BASES, 
                        AA = AA_STANDARD2, safeExplode(alph))
@@ -253,61 +261,102 @@ assignInNamespace("read_meme", read_meme2, ns = "universalmotif")
 #Now reading file 
 motif_file <- read_meme2(arguments$input)
 
-seeds_sequences <- (read.table(arguments$miRNA_seeds, header = F))
-seeds_list <- list()
-for(i in 1:nrow(seeds_sequences)) {        
-  seeds_list[[i]] <- seeds_sequences[ i, 1]
+out <- str_replace(arguments$input, ".meme", ".list")
+
+
+#Extract sequences
+if (isTRUE(arguments$score) & grepl(x = arguments$input, pattern = "highstab", fixed = TRUE)) {
+  motifs_sequences <- sapply(motif_file, function(x) cbind(x@name, get_matches(x@motif, x@icscore)))
+} else {
+  motifs_sequences <- sapply(motif_file, function(x) cbind(x@name, get_matches(x@motif, motif_score(x@motif)[2])))
 }
 
-motif_sequences <- character()
-for (i in 1:length(motif_file)) {
-  if (arguments$score) {
-    #icscore threshold used
-    motifs_i <- get_matches(motif_file[[i]]@motif, motif_file[[i]]@icscore)
-    motif_sequences <- cbind(motif_sequences, motifs_i)
+#Sometimes it return as a list, sometimes as an array, so have to check
+if (is.list(motifs_sequences)) {
+  motifs_sequences <- Reduce(rbind, motifs_sequences)   
+  motifs_sequences <- data.frame(name = motifs_sequences[,1],
+                                 sequence = motifs_sequences[,2])
+} else { 
+   motifs_sequences <- data.frame(name = motifs_sequences[1,],
+                               sequence = motifs_sequences[2,]) 
+   }
+
+#Remove similar motifs in highstab between lowstab
+if  (grepl(x = arguments$input, pattern = "highstab", fixed = TRUE) ) {
+  tomtom <- try(read.table(arguments$tomtom, fill = T, header = T))
+  #Check if tomtom file is empty
+  if (class(tomtom) == "try-error") {
+    to_remove <- vector()
+    filtered_sequences <- motifs_sequences
   } else {
-    #Only 1
-    max_score <- motif_score(motif_file[[i]]@motif)[2]
-    motifs_i <- get_matches(motif_file[[i]]@motif, max_score) 
-    motif_sequences <- cbind(motif_sequences, motifs_i)
+  tomtom <- (tomtom[1:(nrow(tomtom)-4),])
+  to_remove <- unique(tomtom$Query_ID)
+  tomtom_remove <- motifs_sequences[motifs_sequences[, 1] %in% to_remove,]
+  filtered_sequences <- motifs_sequences[!(motifs_sequences[, 1] %in% to_remove),]
   }
 }
 
-matches <- lapply(seeds_list, FUN = function(x) motif_sequences[str_which(motif_sequences, x)])
+#Checking for miRNA seed targets
+seeds_motifs <- read_meme2(arguments$miRNA_seeds)  
+seeds_sequences <- sapply(seeds_motifs, function(x) cbind(x@name, get_matches(x@motif, motif_score(x@motif)[2]))) 
+seeds_sequences <- data.frame(name = seeds_sequences[1,],
+                              sequence = seeds_sequences[2,])
 
-matches <- matches[lapply(matches,length) >0]
+match_sirna <- lapply(seeds_sequences[,2], function(x) motifs_sequences[str_detect(motifs_sequences[,2], x),]  )
+names(match_sirna) <- paste(seeds_sequences[,1] , seeds_sequences[,2], sep = ":")
+match_sirna <-  match_sirna[lapply(match_sirna,nrow) >0]
+match_sirna_table <- do.call (rbind , match_sirna)
+matched_sequences <- sapply(match_sirna, function(x) x$sequence) %>% unique()
 
-matches <- Reduce(c, matches) %>% Reduce(c, .) %>% unique() 
-
-
-filtered_sequences <- motif_sequences[!(motif_sequences %in% matches)]
-poly <- length(str_which(filtered_sequences, "AAUAAA"))
-filtered_sequences <- filtered_sequences[-(str_which(filtered_sequences, "AAUAAA"))]
-
-log <- c(paste0("Total number of motifs: ", length(motif_file)), 
-         paste0("Total number of motifs sequences: ", length(motif_sequences)),
-         paste0("Number of sequences matching miRNA seed targets: ", length(matches)),
-         paste0("Number of sequences with polyA signal AUAAA: ", length(poly)),
-         "Matching motifs to miRNA seeds:")
-
-
-out <- str_replace(arguments$input, ".meme", ".list")
-
-#Writting filtered list for highstab and non-filtered one for lowstab
 if  (grepl(x = arguments$input, pattern = "highstab", fixed = TRUE) ) {
-  write.table(filtered_sequences ,file = out, sep = "\n", col.names = F, quote = F,
-            row.names = F)
-} else {
-  write.table(motif_sequences ,file = out, sep = "\n", col.names = F, quote = F,
-              row.names = F)
- }
+  filtered_sequences <- filtered_sequences[!(filtered_sequences[, 2] %in% matched_sequences),]
+}
+
+#Check for polyA signal
+poly <- length(str_which(motifs_sequences[,2], "AUAAA"))
+
+if (poly != 0 && grepl(x = arguments$input, pattern = "highstab", fixed = TRUE)) {
+  polyA <- str_subset(motifs_sequences[,2], "AUAAA")
+  filtered_sequences <- filtered_sequences[!(filtered_sequences[, 2] %in% polyA),]
+}
+
+#Log file printing
+if (grepl(x = arguments$input, pattern = "highstab", fixed = TRUE) ) {
   
-write.table(c(log,matches), 
-            paste0(out, ".log") ,
-            sep = "\n",
-            col.names = F,
-            row.names = F,
+  log <- c(paste0("Total number of motifs: ", length(motif_file)), 
+           paste0("Total number of motifs sequences: ", nrow(motifs_sequences)),
+           paste0("Number of motifs similar to lowstab motifs: ", length(to_remove)),
+           paste0("Number of sequences matching miRNA seed targets: ", length(matched_sequences)),
+           paste0("Number of sequences with polyA signal AUAAA: ", poly),
+           paste0("Final number of sequences: ", nrow(filtered_sequences)),
+           "See .matching.mirna.seeds file to find motifs targeted by miRNAs")
+  write.table(filtered_sequences[,2] ,file = out, sep = "\n", col.names = F, quote = F,
+              row.names = F)
+  write.table(log, 
+              paste0(out, ".log") ,
+              sep = "\n",
+              col.names = F,
+              row.names = F,
+              quote = F)
+} else {
+  log <- c(paste0("Total number of motifs: ", length(motif_file)), 
+           paste0("Total number of motifs sequences: ", nrow(motifs_sequences)),
+           paste0("Number of sequences matching miRNA seed targets: ", length(matched_sequences)),
+           paste0("Number of sequences with polyA signal AUAAA: ", poly),
+           "See .matching.mirna.seeds file to find motifs targeted by miRNAs",
+           "Lowstab motifs have not been filetred")
+  write.table(motifs_sequences[,2] ,file = out, sep = "\n", col.names = F, quote = F,
+              row.names = F)
+  write.table(log, 
+              paste0(out, ".log") ,
+              sep = "\n",
+              col.names = F,
+              row.names = F,
+              quote = F)
+}
+
+write.table(match_sirna_table, 
+            str_replace(out, ".list", ".matching.mirna.seeds"),
+            sep = "\t",
+            row.names = T,
             quote = F)
-
-
-
