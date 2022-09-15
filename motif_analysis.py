@@ -180,7 +180,7 @@ else:
 
 #FIRE
 @follows(getfasta)
-@subdivide(["fire_halflife.txt","fire_residual.txt"],
+@subdivide(["fire_*.txt"],
        formatter(),
        add_inputs("fire.fasta"),
        [r"{path[0]}/{basename[0]}.txt.%imer_FIRE/RNA/{basename[0]}.txt.%imer.signif.motifs.rep" % (i,i) for i in range(6,end_kmer)])
@@ -225,7 +225,7 @@ def fire(infiles, outfiles):
 
 
 @follows(getfasta)
-@transform(["background.fasta", "fire.fasta"],
+@transform("background.fasta",
            regex("(.+)"),
            r"\1.bg")
 def fasta_to_bg(infile, outfile):
@@ -236,10 +236,9 @@ def fasta_to_bg(infile, outfile):
     P.run(statement)
 
 #HOMER conversion
-@follows(fasta_to_bg)
 @transform(homer,
            regex("(.+)_(highstab|lowstab)_homer.dir/homerMotifs.all.motifs"),
-           add_inputs("background.fasta.bg"),
+           add_inputs(fasta_to_bg),
            r"\1_\2_homer.dir/homerMotifs.all.motifs.meme")
 def homer_to_meme(infiles, outfile):
     '''Convert HOMER output to MEME format for tomtom'''
@@ -259,8 +258,8 @@ def homer_to_meme(infiles, outfile):
 
 #Fire merge and conversion
 @subdivide(fire,
-       regex("(.+)txt.([0-9]mer).signif.motifs.rep"),
-       [r"\1\2_highstab.signif.motifs", r"\1\2_lowstab.signif.motifs"])
+           regex("(.+)txt.([0-9]mer).signif.motifs.rep"),
+           [r"\1\2_highstab.signif.motifs", r"\1\2_lowstab.signif.motifs"])
 def extractFire(infile, outfiles):
     '''Extract significant motifs from FIRE enriched in top or bottom bin'''
     script_path = os.path.join((os.path.dirname(__file__)),
@@ -272,11 +271,9 @@ def extractFire(infile, outfiles):
     '''
     P.run(statement)
 
-
-
 @follows(mkdir("fire.dir"))
 @collate(extractFire,
-        regex(r"fire_(halflife|residual).txt.(?:[0-9]mer).+([0-9]mer)_(highstab|lowstab).signif.motifs"),
+        regex(r"fire_(.+).txt.(?:[0-9]mer).+([0-9]mer)_(highstab|lowstab).signif.motifs"),
         r"fire.dir/\1_\3.allkmer.signif.motifs")
 def mergeFireKmers(infiles, outfile):
     '''Merge the fire kmer results together'''
@@ -286,75 +283,48 @@ def mergeFireKmers(infiles, outfile):
     '''
     P.run(statement)
 
-
-@follows(fasta_to_bg)
-@transform(mergeFireKmers,
-           regex("(.+)"),
-           add_inputs("fire.fasta.bg"),
-           r"\1.meme")
-def fire_to_meme(infiles, outfile):
-    '''Convert FIRE output to MEME format for tomtom'''
-    fire_file, background = infiles
-    fire_temp = fire_file+".temp"
-    script_path = os.path.join((os.path.dirname(__file__)),
-                               "Rscripts",
-                               "fire2meme.R")
-    statement = '''
-    while read -r line;
-    do iupac2meme $line -bg %(background)s ;
-    done < %(fire_file)s > %(fire_temp)s &&
-    Rscript %(script_path)s
-    -i %(fire_temp)s
-    -b %(background)s &&
-    rm %(fire_temp)s
-    '''
-    P.run(statement)
-
-#Self Tomtom for Homer, Fire and Streme results
-@transform([streme,homer_to_meme,fire_to_meme],
-       regex("(.+)(meme|streme\.txt)"),
-       r"\1tomtom.self")
-def tomtom_self(infile, outfile):
-    '''Self tomtom on motif files'''
-    if (infile.count("streme.txt") >= 1) and (IOTools.get_num_lines(infile) <= 38):
-        E.warn("No motifs - no computation performed")
+@collate(mergeFireKmers,
+         regex("(fire.dir/).+(highstab.allkmer|lowstab.allkmer).+"),
+         r"\1\2.fireMotifs")
+def removeRedundantFire(infiles, outfile):
+    '''Remove redundants motifs from fire output'''
+    motif_filtered = [x for x in infiles if IOTools.is_empty(x) == False]
+    if len(motif_filtered) == 0:
         IOTools.touch_file(outfile)
-        return
-    if (infile.count("streme.txt") == 0) and (IOTools.get_num_lines(infile) <= 9):
-        E.warn("No motifs - no computation performed")
-        IOTools.touch_file(outfile)
-        return
-    tomtom_file = infile+".tomtom"
-    tomtom_log = tomtom_file+".log"
-    q_val = PARAMS["thresh_self"]
-    statement = '''
-    tomtom -verbosity 1 -text -norc -thresh %(q_val)s
-    %(infile)s %(infile)s
-    2> %(tomtom_log)s | sed 's/#//' > %(tomtom_file)s
-    '''
-    P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
-    PipelineTomtom.getSeedMotifs(infile, tomtom_file, outfile)
-    statement = '''
-    rm %(tomtom_file)s
-    '''
-    P.run(statement)
-
-#Create table of motifs here
+    else:
+        input_string = ",".join(motif_filtered)
+        script_path = os.path.join((os.path.dirname(__file__)),
+                                   "Rscripts",
+                                   "removeRedundant.R")
+        statement = '''
+        Rscript %(script_path)s
+        -f %(input_string)s
+        -o %(outfile)s
+        '''
+        P.run(statement)
 
 
+#Merge streme and Homer results, then do Tomtom to remove dedundants
 @follows(mkdir("final_motifs"))
-@collate(tomtom_self,
+@collate([streme,homer_to_meme],
          regex(".*(lowstab|highstab).+"),
-         add_inputs("background.fasta.bg"),
-         r"final_motifs/\1_final_motifs.meme")
+         add_inputs(fasta_to_bg),
+         r"final_motifs/\1_merge_homer_streme.meme")
 def tomtom_combine(infiles, outfile):
-    '''Merge all motifs together, than run tomtom on merge and eliminate
+    '''Merge all motifs together, then run tomtom on merge and eliminate
     redundant motifs to create the final list of motifs'''
     motif_files = [i[0] for i in infiles]
     background = infiles[0][1]
-    motif_filtered = [x for x in motif_files if IOTools.is_empty(x) == False]
+    motif_filtered = []
+    for i in motif_files:
+        if (i.count("streme.txt") >= 1) and (IOTools.get_num_lines(i) <= 38):
+            E.debug("No motifs in ", str(i))
+        elif (i.count("homer") >= 1) and (IOTools.get_num_lines(i) <= 9):
+            E.debug("No motifs in ", str(i))
+        else:
+            motif_filtered.append(i)
     if len(motif_filtered) == 0 :
-        E.debug("No motifs present for ", str(infiles))
+        E.debug("No motifs present for ", str(motif_files))
         IOTools.touch_file(outfile)
         return
     if len(motif_filtered) == 1 :
@@ -365,7 +335,7 @@ def tomtom_combine(infiles, outfile):
         P.run(statement, job_options = "-P gen2reg -l h_rt=1:00:00")
         return
     input_string = " ".join(motif_filtered)
-    temp_file = P.snip(outfile, "final_motifs.meme")+"merged.motifs"
+    temp_file = P.snip(outfile, ".meme")+".temp.merge"
     statement = '''
     meme2meme -bg %(background)s
     %(input_string)s > %(temp_file)s
@@ -373,7 +343,7 @@ def tomtom_combine(infiles, outfile):
     P.run(statement)
     q_val = PARAMS["thresh_merge"]
     tomtom_log = outfile+".log"
-    temp_tomtom = P.snip(outfile, "final_motifs.meme")+"merged.motifs.tomtom"
+    temp_tomtom = P.snip(outfile, ".meme")+".motifs.tomtom"
     statement = '''
     tomtom -verbosity 1 -text -norc -thresh %(q_val)s
     %(temp_file)s %(temp_file)s
@@ -384,7 +354,7 @@ def tomtom_combine(infiles, outfile):
 
 
 @merge(tomtom_combine,
-       r"final_motifs/highstab_vs_lowstab.tomom")
+       r"final_motifs/merge_homer_streme_highstab_vs_lowstab.tomom")
 def high_vs_low(infiles, outfile):
     '''Scan highstab motifs vs lowstab motifs'''
     tomtom_log = outfile+".log"
@@ -398,24 +368,29 @@ def high_vs_low(infiles, outfile):
     '''
     P.run(statement)
 
-@transform(tomtom_combine,
-           regex("(final_motifs/highstab|final_motifs/lowstab)(.+)"),
-           add_inputs(high_vs_low),
-           r"\1_final_motifs.list")
+
+@collate([tomtom_combine, removeRedundantFire],
+         regex(".+(highstab|lowstab)(?:.+)"),
+         add_inputs(high_vs_low),
+         r"final_motifs/\1_final_motifs.list")
 def memeToList(infiles, outfile):
     '''Convert meme output to list of sequences for linker finder'''
-    motifs, tomtom = infiles
+    motif_file = [i[0] for i in infiles if "merge_homer_streme.meme" in i[0]]
+    motif_file = motif_file[0]
+    fire_file = [i[0] for i in infiles if "fire" in i[0]]
+    fire_file = fire_file[0]
+    high_vs_low_tomtom = infiles[0][1]
     mirna_seeds = PARAMS["mirna_seeds_db"]
-    options = PARAMS["options"]
     script_path = os.path.join((os.path.dirname(__file__)),
                                "Rscripts",
-                               "filter4mirna_meme2list.R")
+                               "merge_filter4mirna_meme2list.R")
     statement = '''
     Rscript %(script_path)s
-    -i %(motifs)s
+    -i %(motif_file)s
+    -f %(fire_file)s
     -m %(mirna_seeds)s
-    -t %(tomtom)s
-    %(options)s
+    -t %(high_vs_low_tomtom)s
+    -o %(outfile)s
     '''
     P.run(statement)
 
