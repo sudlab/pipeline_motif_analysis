@@ -180,7 +180,7 @@ else:
 
 #FIRE
 @follows(getfasta)
-@subdivide(["fire_halflife.txt","fire_residual.txt"],
+@subdivide(["fire_*.txt"],
        formatter(),
        add_inputs("fire.fasta"),
        [r"{path[0]}/{basename[0]}.txt.%imer_FIRE/RNA/{basename[0]}.txt.%imer.signif.motifs.rep" % (i,i) for i in range(6,end_kmer)])
@@ -276,7 +276,7 @@ def extractFire(infile, outfiles):
 
 @follows(mkdir("fire.dir"))
 @collate(extractFire,
-        regex(r"fire_(halflife|residual).txt.(?:[0-9]mer).+([0-9]mer)_(highstab|lowstab).signif.motifs"),
+        regex(r"fire_(.+).txt.(?:[0-9]mer).+([0-9]mer)_(highstab|lowstab).signif.motifs"),
         r"fire.dir/\1_\3.allkmer.signif.motifs")
 def mergeFireKmers(infiles, outfile):
     '''Merge the fire kmer results together'''
