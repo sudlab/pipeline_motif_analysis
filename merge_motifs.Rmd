@@ -1,0 +1,212 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This notebook check motif sequences obtained from the different motif pipeline: 
+- a549_slam
+- a549_tripseq
+- hepg2_slam
+- hepg2_tripseq
+
+```{r}
+library(stringr)
+library(tidyverse)
+library(Biostrings)
+library(msa)
+
+out_dir = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/linkers_test3"
+
+
+```
+
+
+Load tables
+
+```{r}
+#A549
+a549_slam_one_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/one_transcript/final_motifs/highstab_final_motifs.list", header = T)
+a549_slam_one_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/one_transcript/final_motifs/lowstab_final_motifs.list", header = T)
+
+a549_slam_all_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/all_transcripts/final_motifs/highstab_final_motifs.list", header = T)
+a549_slam_all_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/all_transcripts/final_motifs/lowstab_final_motifs.list", header = T)
+
+a549_tripseq_one_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_tripseq/motif_analysis/one_transcript/final_motifs/highstab_final_motifs.list", header = T)
+a549_tripseq_one_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_tripseq/motif_analysis/one_transcript/final_motifs/lowstab_final_motifs.list", header = T)
+
+a549_tripseq_all_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_tripseq/motif_analysis/all_transcripts/final_motifs/highstab_final_motifs.list", header =T)
+a549_tripseq_all_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_tripseq/motif_analysis/all_transcripts/final_motifs/highstab_final_motifs.list", header =T)
+
+
+#HepG2
+hepg2_slam_one_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/one_transcript/final_motifs/highstab_final_motifs.list", header = T)
+hepg2_slam_one_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/one_transcript/final_motifs/lowstab_final_motifs.list", header = T)
+
+hepg2_slam_all_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/all_transcripts/final_motifs/highstab_final_motifs.list", header = T)
+hepg2_slam_all_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/all_transcripts/final_motifs/lowstab_final_motifs.list", header = T)
+
+hepg2_tripseq_one_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/one_transcript/final_motifs/highstab_final_motifs.list", header = T)
+hepg2_tripseq_one_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/one_transcript/final_motifs/lowstab_final_motifs.list", header = T)
+
+hepg2_tripseq_all_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/all_transcripts/final_motifs/highstab_final_motifs.list", header =T)
+hepg2_tripseq_all_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/all_transcripts/final_motifs/highstab_final_motifs.list", header =T)
+
+my_msa <- function (x, my_method) {
+  seq_msa <- msa(BStringSet(x),method = my_method,
+                type = "rna")
+  consensus <- msaConsensusSequence(seq_msa)
+  return(consensus)
+}
+
+```
+
+
+
+
+```{r}
+
+highstab_matrix <- bind_rows(a549_slam_all_high=a549_slam_all_high,
+                  a549_slam_one_high=a549_slam_one_high,
+                  a549_tripseq_all_high=a549_tripseq_all_high,
+                  a549_tripseq_one_high=a549_tripseq_one_high,
+                  hepg2_slam_all_high=hepg2_slam_all_high,
+                  hepg2_slam_one_high=hepg2_slam_one_high,
+                  hepg2_tripseq_all_high=hepg2_tripseq_all_high,
+                  hepg2_tripseq_one_high=hepg2_tripseq_one_high, .id = "Source")
+
+lowstab_matrix <- bind_rows(a549_slam_all_low=a549_slam_all_low,
+                  a549_slam_one_low=a549_slam_one_low,
+                  a549_tripseq_all_low=a549_tripseq_all_low,
+                  a549_tripseq_one_low=a549_tripseq_one_low,
+                  hepg2_slam_all_low=hepg2_slam_all_low,
+                  hepg2_slam_one_low=hepg2_slam_one_low,
+                  hepg2_tripseq_all_low=hepg2_tripseq_all_low,
+                  hepg2_tripseq_one_low=hepg2_tripseq_one_low, .id = "Source")
+
+highstab_seq <- c(a549_slam_all_high[,2],
+                  a549_slam_one_high[,2],
+                  a549_tripseq_all_high[,2],
+                  a549_tripseq_one_high[,2],
+                  hepg2_slam_all_high[,2],
+                  hepg2_slam_one_high[,2],
+                  hepg2_tripseq_all_high[,2],
+                  hepg2_tripseq_one_high[,2]) %>%
+  unique()
+
+#No strings of 6 Gs, As, Us, Cs
+notOK <- c(highstab_seq[str_detect(highstab_seq, "AAAAAA")],
+           highstab_seq[str_detect(highstab_seq, "GGGGGG")],
+           highstab_seq[str_detect(highstab_seq, "UUUUUU")],
+           highstab_seq[str_detect(highstab_seq, "CCCCCC")])
+
+
+highstab_seq <- highstab_seq[!(highstab_seq %in% notOK)]
+
+#Get motifs matching each other
+self_match <- sapply(highstab_seq, function(i) highstab_seq[str_detect(highstab_seq, i)])
+
+#No match
+final <- self_match[lapply(self_match, length) == 1]
+
+#Matches
+several <- self_match[lapply(self_match,length) >1]
+
+#Cluster them
+clustered <- sapply(several, 
+                    function(x) unique(unlist(several[sapply(several, 
+                                                             function(y) any(x %in% y))]))) %>% unique
+
+#Multiple aligment and fetch consensus of aligment
+msa_consensus <- lapply(clustered, function(x) my_msa(x, my_method = "ClustalOmega") )
+
+#Remove unwanted characters
+list_several <- do.call(c, msa_consensus) %>% 
+  str_remove_all("[^AUCG]") 
+
+#Filter from single hits the long motifs that only match themselves but match with others
+to_filter_in_final <- clustered %>% do.call(c,.)
+final <- final[!(final %in% to_filter_in_final)]
+
+highstab_final <- final %>% do.call(c, .) %>% c(., list_several) %>%
+  unique()
+
+lowstab_seq <- c(a549_slam_all_low[,2],
+                  a549_slam_one_low[,2],
+                  a549_tripseq_all_low[,2],
+                  a549_tripseq_one_low[,2]) %>%
+  unique()
+
+notOK <- c(lowstab_seq[str_detect(lowstab_seq, "AAAAAA")],
+           lowstab_seq[str_detect(lowstab_seq, "GGGGGG")],
+           lowstab_seq[str_detect(lowstab_seq, "UUUUUU")],
+           lowstab_seq[str_detect(lowstab_seq, "CCCCCC")])
+
+
+lowstab_seq <- lowstab_seq[!(lowstab_seq %in% notOK)]
+
+###
+#Get motifs matching each other
+self_match <- sapply(lowstab_seq, function(i) lowstab_seq[str_detect(lowstab_seq, i)])
+
+#No match
+final <- self_match[lapply(self_match, length) == 1]
+
+#Matches
+several <- self_match[lapply(self_match,length) >1]
+
+#Cluster them
+clustered <- sapply(several, 
+                    function(x) unique(unlist(several[sapply(several, 
+                                                             function(y) any(x %in% y))]))) %>% unique
+msa_consensus <- lapply(clustered, function(x) my_msa(x, my_method = "ClustalOmega") )
+to_filter_in_final <- clustered %>% do.call(c,.)
+final <- final[!(final %in% to_filter_in_final)]
+list_several <- do.call(c, msa_consensus) %>% 
+  str_remove_all("[^AUCG]") 
+
+lowstab_final <- final %>% do.call(c, .) %>% c(., list_several) %>%
+  unique()
+
+#####
+
+#Remove highstab in lowstab, use full lowstab list 
+low_filter <- lapply(lowstab_seq, function(i) highstab_seq[(str_detect(highstab_seq, i))])
+
+```
+
+
+```{r}
+#Doesn't handle no match, but very unlikely
+
+#If there is a match length == 1
+low_filter <- low_filter[lapply(low_filter, length) == 1]
+low_filter <- do.call(c, low_filter)
+highstab_final <- highstab_final[!(highstab_final %in% low_filter)]
+
+write.table(highstab_final, paste0(out_dir,"/highstab.list"),
+            col.names = F, row.names = F, quote = F, sep = "\n")
+
+
+
+write.table(lowstab_final, paste0(out_dir,"/lowstab.list"),
+            col.names = F, row.names = F, quote = F, sep = "\n")
+
+###Logs and others
+write.table(highstab_matrix, paste0(out_dir,"/highstab.source"),
+            col.names = F, row.names = F, quote = F, sep = "\n")
+
+
+
+write.table(lowstab_matrix, paste0(out_dir,"/lowstab.source"),
+            col.names = F, row.names = F, quote = F, sep = "\n")
+
+#Will use this later to create reports
+
+
+#Shared and stuff
+
+
+```
+
+
+

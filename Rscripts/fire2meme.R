@@ -11,7 +11,7 @@ option_list = list(
               type="character",
               dest = "background_path",
               help="full path directory of background.fasta.bg")
-  
+
 )
 
 arguments <- parse_args(OptionParser(option_list = option_list))
@@ -53,7 +53,7 @@ motif2meme <- function(inFile, fire.bg) {
     cat("strands: + \n\n")
     cat("Background letter frequencies\n", file=thisFile,append=TRUE)
     cat(bg, "\n\n",file=thisFile,append=TRUE)
-    if (n.motifs == 1) { # only 1 motif 
+    if (n.motifs == 1) { # only 1 motif
       #print(i)
       8 -> index.start
       total.len -> index.end
@@ -68,7 +68,7 @@ motif2meme <- function(inFile, fire.bg) {
       motif.file[6] -> header.string
       strsplit(header.string, split = " ") -> header_split
       motif.file[7] -> prob.string
-      prob.string <- str_replace_all(prob.string, "E= 0", "E= 0.1")
+      prob.string <- str_replace_all(prob.string, "E= 0", "E= 0.09")
       header_split[[1]][2] -> name.string
       motif_name <- paste("FIRE",n.motifs,sep="-")
       cat("MOTIF",name.string,motif_name,"\n",file=thisFile, append=TRUE)
@@ -76,9 +76,9 @@ motif2meme <- function(inFile, fire.bg) {
       write.table(motif_array,file=thisFile,append=TRUE,col.names=FALSE,row.names=FALSE,sep="\t")
       cat("\n",file=thisFile, append=TRUE)
       sink()
-      close(thisFile) 
+      close(thisFile)
       print("matrix has been converted to MEME")
-      
+
     } else { # more than 1 motif
       #print(n.motifs)
       for (i in 1:(n.motifs-1)) {
@@ -128,11 +128,11 @@ motif2meme <- function(inFile, fire.bg) {
       write.table(motif_array,file=thisFile,append=TRUE,col.names=FALSE,row.names=FALSE,sep="\t")
       cat("\n",file=thisFile, append=TRUE)
       sink()
-      close(thisFile) 
+      close(thisFile)
       print("matrix has been converted to MEME")
-      
+
       } #end else 2
-    
+
   } #end else 1
 }
 motif2meme(inFile = arguments$fire_path,
