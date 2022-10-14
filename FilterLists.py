@@ -2,7 +2,7 @@
 cgat_script_template.py - template for cgat scripts
 ====================================================
 
-:Author:
+:Author: Chqrlotte Vqndermeulen
 :Tags: Python
 
 Purpose
@@ -17,11 +17,11 @@ Usage
 
 Example::
 
-   python cgat_script_template.py
+   python FilterLists.py
 
 Type::
 
-   python cgat_script_template.py --help
+   python FilterLists.py --help
 
 for command line help.
 
@@ -59,7 +59,7 @@ def main(argv=None):
 
     inlow_highstab.to_csv(options.stdout, sep ='\t', header = None)
     #args.stdout
-    # 
+    #
     # write footer and output benchmark information.
     E.stop()
 
