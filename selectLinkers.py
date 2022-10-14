@@ -24,7 +24,7 @@ Usage
 Add inputs to script, then run the the script.
 
    python select_linkers.py
-          -I highstab_motifs.list
+          -i highstab_motifs.list
           -l lowstab_motifs.list
           -m mirna_seed_sequences.list
           -r list_linkers.txt
@@ -181,7 +181,7 @@ def main(argv=None):
     MatchLow = defaultdict(int)
     MatchSeed = defaultdict(int)
     MatchHigh = defaultdict(int)
-    progress = 0
+    #progress = 0
     for i,j in highIterator:
         missingList = high -set([i,j])
         for l in linkers:
