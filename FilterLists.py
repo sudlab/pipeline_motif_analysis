@@ -2,7 +2,7 @@
 cgat_script_template.py - template for cgat scripts
 ====================================================
 
-:Author: Chqrlotte Vqndermeulen
+:Author: Charlotte Vqndermeulen
 :Tags: Python
 
 Purpose

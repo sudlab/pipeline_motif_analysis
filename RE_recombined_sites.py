@@ -34,8 +34,8 @@ import re
 from Bio import Seq
 
 #######START INPUTS###################
-name_ouput = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/linkers_test3/list_linkers.txt"
-name_enzyme_RE_site_table = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/linkers_test3/RE_sites_linkers.txt"
+name_ouput = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/list_linkers.txt"
+name_enzyme_RE_site_table = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/RE_sites_linkers.txt"
 #######Table of RE pairs#######
 enzymes_dict = {"Acc65I":["BsiWI", "BsrGI"],
 "AgeI":["AvaI", "BspEI", "SgrAI", "NgoMIV"],
@@ -194,4 +194,4 @@ output.close()
 output2 = open(name_enzyme_RE_site_table, "w")
 output2.write("RE1 name,RE2 name"+"\t"+"RE1 site, RE2site"+"\n")
 for key in re_sites_pairs:
-    output2.write(str(key)+"\t"+str(re_sites_pairs[key])+"\n")
+    output2.write(str(key[0])+","+str(key[1])+ "\t"+str(re_sites_pairs[key][0])+","+str(re_sites_pairs[key][1])+"\n")

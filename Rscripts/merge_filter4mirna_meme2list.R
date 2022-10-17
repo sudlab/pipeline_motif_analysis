@@ -37,16 +37,16 @@ option_list = list(
 
 arguments <- parse_args(OptionParser(option_list = option_list))
 
-# setwd("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/one_transcript/")
+# setwd("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/one_transcript/")
 # #setwd("/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr_newUTRS/slam_highest_exons/motif_analysis/new_lasso/all_transcripts")
 # arguments <- data.frame(fire = "fire.dir/highstab.allkmer.fireMotifs",
 #                         input = "final_motifs/highstab_merge_homer_streme.meme",
 #                         miRNA_seeds = "/mnt/sharc/shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.meme",
 #                         tomtom = "final_motifs/merge_homer_streme_highstab_vs_lowstab.tomtom",
 #                         filter_fire = "fire.dir/highstab_in_lowstab.list",
-#                         output = "highstab_final_motifs.list",
+#                         output = "final_motifs/highstab_final_motifs.list",
 #                         relevant = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/miRmine/relevant_miRNA_a549_hepg2.tsv")
-
+# 
 
 #Modify read_meme function so it accepts spaces in the file 
 #Otherwise it throws an error
@@ -336,12 +336,12 @@ if (class(relevant) != "try-error") {
  #intersect(relevant[,1], seeds_sequences[,1]) %>% length()
 #missing 17 entries
 seeds_sequences <- seeds_sequences %>% 
-  filter(seeds_sequences[,1] %in% relevant[,1]) 
+  dplyr::filter(seeds_sequences[,1] %in% relevant[,1]) 
 }
 
 #######################################################
 
-match_sirna <- lapply(seeds_sequences[,2], function(x) motifs_sequences[str_detect(motifs_sequences[,2], x),]  )
+match_sirna <- lapply(seeds_sequences[,2], function(x) filtered_sequences[str_detect(filtered_sequences[,2], x),]  )
 names(match_sirna) <- paste(seeds_sequences[,1] , seeds_sequences[,2], sep = ":")
 match_sirna <-  match_sirna[lapply(match_sirna,nrow) >0]
 match_sirna_table <- do.call (rbind , match_sirna)
@@ -352,10 +352,10 @@ if  (grepl(x = arguments$input, pattern = "highstab", fixed = TRUE) ) {
 }
 
 #Check for most common polyA signal(s)
-poly <- length(str_which(motifs_sequences[,2], "AUAAA"))
+poly <- length(str_which(filtered_sequences[,2], "AUAAA"))
 
 if (poly != 0 && grepl(x = arguments$input, pattern = "highstab", fixed = TRUE)) {
-  polyA <- str_subset(motifs_sequences[,2], "AUAAA")
+  polyA <- str_subset(filtered_sequences[,2], "AUAAA")
   filtered_sequences <- filtered_sequences[!(filtered_sequences[, 2] %in% polyA),]
 }
 
@@ -385,12 +385,12 @@ if (grepl(x = arguments$input, pattern = "highstab", fixed = TRUE) ) {
   log <- c(paste0("Number of motifs from Streme and Homer: ", length(motif_file)),
            paste0("Total number of motifs sequences from Streme and Homer: ", nrow(motifs_sequences)),
            paste0("Number of motifs sequences from Fire: ", nrow(fire)),
-           paste0("Total number of motifs sequences: ", nrow(motifs_sequences)),
+           paste0("Total number of motifs sequences: ", nrow(filtered_sequences)),
            paste0("Number of sequences matching miRNA seed targets: ", length(matched_sequences)),
            paste0("Number of sequences with polyA signal AUAAA: ", poly),
            "See .matching.mirna.seeds file to find motifs targeted by miRNAs",
            "Lowstab motifs have not been filetred")
-  write.table(motifs_sequences,file = arguments$output, sep = "\t", col.names = T, quote = F,
+  write.table(filtered_sequences,file = arguments$output, sep = "\t", col.names = T, quote = F,
               row.names = F)
   write.table(log, 
               paste0(arguments$output, ".log") ,

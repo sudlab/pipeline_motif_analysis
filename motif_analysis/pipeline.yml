@@ -46,4 +46,4 @@ mirna_seeds_db: /shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIR
 # O or 1, if 1 miRNA seeds are filtered for relevant miRNA detected in A549 and HepG2 cells
 filter_mirna: 1
 #File for filtering
-relevant_mirna: /mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/miRmine/relevant_miRNA_a549_hepg2.tsv
+relevant_mirna: /shared/sudlab1/General/projects/SynthUTR_hepG2_a549/miRmine/relevant_miRNA_a549_hepg2.tsv
