@@ -159,7 +159,7 @@ for re in possible_re_pairs:
     cutindex1 = site1.index("^")
     cutindex2 = site2.index("^")
     for m in list_motifs:
-        forward = Linker[:cutindex2]+m+Linker[cutindex2:]
+        forward = Linker[cutindex2:]+m+Linker[:cutindex2]
         reverse = Seq.Seq(Linker[-cutindex1:]+m+Linker[:-cutindex1]).complement()
         outfile.write(str(forward)+"\t"+str(reverse)+"\n")
 outfile.close()
