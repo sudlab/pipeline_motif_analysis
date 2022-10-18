@@ -15,9 +15,16 @@ source activate /shared/sudlab1/General/projects/SynthUTR_hepG2_a549/charlotte_c
 From - a linker sequence'
      - a list of motifs and
      - a table of RE and their sites (from RE_recombined_sites)
-generates sequences to order as:
 
-5' overhang1-motif-overhang2 3' and it's complement.
+Checks that the linker combined to the list of motifs doesn't recreate a 
+RE site for the 2 REs. If so, it stated which linker(s) are and they are removed
+from the output.
+
+The output correspond to sequences to order as:
+
+5' overhang1-motif-overhang2 3' 
+and
+5' overhang3-RevMotif-overhang4 3'
 
 Usage
 -----
@@ -143,12 +150,34 @@ for re in linkers_per_pairs:
         possible_re_pairs.add(re)
 
 strip_motifs = list(s.strip() for s in motifs)
-list_motifs = list()
+list_motifs = set()
 for l in strip_motifs:
     if "U" in l:
         T_seq = l.replace("U", "T")
         l = T_seq
-        list_motifs.append(l)
+        list_motifs.add(l)
+    else :
+        list_motifs.add(l)
+
+#Check for BsaHi and BstBI sites in motifs 
+sequences_RE_sites = set()
+for re in possible_re_pairs:
+    site1 = re_sites_pairs[re][0]
+    site2 = re_sites_pairs[re][1]
+    site1 = extend_ambiguous_dna(site1.replace("^", ""))
+    site2 = extend_ambiguous_dna(site2.replace("^", ""))
+    full = site1 + site2
+    sequences_RE_sites.update(full)
+
+filter_motifs = set()
+for i in list_motifs:
+    sequence = Linker + i + Linker
+    for j in sequences_RE_sites:
+        if j in sequence:
+            filter_motifs.add(i)
+print("Motif(s): ", filter_motifs, """create(s) a site for the RE with the
+       the linker and ahs been remove from the motifs list""")
+list_motifs = list_motifs - filter_motifs
 
 #Write table of sequences
 outfile = open(out_seq, "w")
