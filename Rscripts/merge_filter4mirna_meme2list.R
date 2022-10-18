@@ -37,8 +37,8 @@ option_list = list(
 
 arguments <- parse_args(OptionParser(option_list = option_list))
 
-# setwd("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/one_transcript/")
-# #setwd("/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr_newUTRS/slam_highest_exons/motif_analysis/new_lasso/all_transcripts")
+setwd("/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr_newUTRS/slam_highest_exons/motif_analysis/one_transcript")
+#setwd("/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr_newUTRS/slam_highest_exons/motif_analysis/new_lasso/all_transcripts")
 # arguments <- data.frame(fire = "fire.dir/highstab.allkmer.fireMotifs",
 #                         input = "final_motifs/highstab_merge_homer_streme.meme",
 #                         miRNA_seeds = "/mnt/sharc/shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.meme",
@@ -46,7 +46,17 @@ arguments <- parse_args(OptionParser(option_list = option_list))
 #                         filter_fire = "fire.dir/highstab_in_lowstab.list",
 #                         output = "final_motifs/highstab_final_motifs.list",
 #                         relevant = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/miRmine/relevant_miRNA_a549_hepg2.tsv")
-# 
+
+# arguments <- data.frame(fire = "/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr_newUTRS/slam_highest_exons/motif_analysis/one_transcript/fire.dir/highstab.allkmer.fireMotifs",
+#                         input = "final_motifs/highstab_merge_homer_streme.meme",
+#                         miRNA_seeds = "/shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Cricetulus_griseus_cgr.seeds.meme",
+#                         tomtom = "final_motifs/merge_homer_streme_highstab_vs_lowstab.tomtom",
+#                         filter_fire = "fire.dir/highstab_in_lowstab.listt",
+#                         output = "final_motifs/highstab_final_motifs.list")
+
+
+
+
 
 #Modify read_meme function so it accepts spaces in the file 
 #Otherwise it throws an error
@@ -291,7 +301,7 @@ if (is.list(motifs_sequences)) {
 if  (grepl(x = arguments$input, pattern = "highstab", fixed = TRUE) ) {
   tomtom <- try(read.table(arguments$tomtom, fill = T, header = T))
   #Check if tomtom file is empty
-  if (class(tomtom) == "try-error") {
+  if (class(tomtom) == "try-error" | any(is.na(tomtom))) {
     to_remove <- vector()
     filtered_sequences <- motifs_sequences
   } else {

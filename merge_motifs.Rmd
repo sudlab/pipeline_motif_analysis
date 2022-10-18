@@ -15,9 +15,7 @@ library(tidyverse)
 library(Biostrings)
 library(msa)
 
-out_dir = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/linkers_test3"
-
-
+out_dir = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/"
 ```
 
 

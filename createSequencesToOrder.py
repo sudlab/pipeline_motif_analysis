@@ -17,7 +17,7 @@ From - a linker sequence'
      - a table of RE and their sites (from RE_recombined_sites)
 generates sequences to order as:
 
-5' overhang1-motif-overhang2 3'
+5' overhang1-motif-overhang2 3' and it's complement.
 
 Usage
 -----
@@ -42,8 +42,8 @@ from Bio import Seq
 #######START INPUTS###################
 Table_RE_sites = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/RE_sites_linkers.txt"
 out_seq = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/linker_motifs_sequences.txt"
-motifs = open("/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/linkers_test3/highstab.list").readlines()
-Linker = "ACGCGCC"
+motifs = open("/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/highstab.list").readlines()
+Linker = "TTCGTC"
 ####### END INPUTS###################
 
 
@@ -153,14 +153,14 @@ for l in strip_motifs:
 #Write table of sequences
 outfile = open(out_seq, "w")
 for re in possible_re_pairs:
-    outfile.write("Sequences for RE: "+str(re)+"\n")
-    #print(re, re_sites_pairs[re])
+    outfile.write("Sequences for RE: "+str(re)+"\t"+str(re_sites_pairs[re])+"\n")
     site1 = re_sites_pairs[re][0]
     site2 = re_sites_pairs[re][1]
     cutindex1 = site1.index("^")
     cutindex2 = site2.index("^")
     for m in list_motifs:
-        outfile.write(str(Linker[:cutindex2])+str(m)+str(Linker[cutindex2:])+"\n")
-        #print(Linker[:cutindex2],m,Linker[cutindex2:])
+        forward = Seq.Seq(Linker[:cutindex2]+m+Linker[cutindex2:])
+        reverse = forward.complement()
+        outfile.write(str(forward)+"\t"+str(reverse)+"\n")
 outfile.close()
  
