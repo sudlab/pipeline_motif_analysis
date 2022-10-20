@@ -109,6 +109,14 @@ final <- self_match[lapply(self_match, length) == 1]
 #Matches
 several <- self_match[lapply(self_match,length) >1]
 
+#If only matches by 2
+if ( all(lapply(several,  length) ==  2)) {
+  #No need to cluster, keep final, it keeps the longest
+  list_several <- lapply(several, min) %>% do.call(c, .)
+  highstab_final <- final %>% do.call(c, .) %>% c(., list_several) %>%
+  unique()
+} else {
+
 #Cluster them
 clustered <- sapply(several, 
                     function(x) unique(unlist(several[sapply(several, 
@@ -127,7 +135,9 @@ final <- final[!(final %in% to_filter_in_final)]
 
 highstab_final <- final %>% do.call(c, .) %>% c(., list_several) %>%
   unique()
+}
 
+#######
 lowstab_seq <- c(a549_slam_all_low[,2],
                   a549_slam_one_low[,2],
                   a549_tripseq_all_low[,2],
@@ -152,6 +162,13 @@ final <- self_match[lapply(self_match, length) == 1]
 #Matches
 several <- self_match[lapply(self_match,length) >1]
 
+if ( all(lapply(several,  length) ==  2)) {
+  #No need to cluster, keep shortest
+  list_several <- lapply(several, min) %>% do.call(c, .)
+  lowstab_final <- final %>% do.call(c, .) %>% c(., list_several) %>%
+  unique()
+} else {
+  
 #Cluster them
 clustered <- sapply(several, 
                     function(x) unique(unlist(several[sapply(several, 
@@ -164,7 +181,7 @@ list_several <- do.call(c, msa_consensus) %>%
 
 lowstab_final <- final %>% do.call(c, .) %>% c(., list_several) %>%
   unique()
-
+}
 #####
 
 #Remove highstab in lowstab, use full lowstab list 
