@@ -1,6 +1,6 @@
 '''
-cgat_script_template.py - template for cgat scripts
-====================================================
+createSequencesToOrder.py - create sequences to order
+=====================================================
 
 :Author: Charlotte Vandermeulen
 :Tags: Python

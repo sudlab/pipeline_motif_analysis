@@ -1,0 +1,261 @@
+---
+title: "Report_motif_analysis"
+author: "Charlotte Vandermeulen"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("rmarkdown")
+library("tidyverse")
+#Rscript -e "rmarkdown::render(script_path,params=list(directory = path_of_pipeline))"
+#knitr::opts_knit$set(root.dir = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/all_transcripts/")
+```
+
+# Report of pipeline motif_analysis
+
+In this report, we summarize the motifs discovered by the pipeline.
+
+"High" stability motifs refer to motifs that were enriched in the 3'UTR of 
+transcripts ranking at the top for the value used to rank them. Since originally
+the pipeline was used on mRNA half-lives, I gave them the name of "highstab" motifs.
+Similarly, "low" stability motifs refer to motifs enriched in the bottom 
+transcripts for the value used to rank them.
+Other ranking values can be used (such as Translation Efficiency, ...), keeping 
+in mind that the pipeline will label higher values as high "stability", "TE", ...
+
+It reports: <br>
+- the number of motifs discovered by Homer, Streme and/or Fire; <br>
+- the number of motifs that contained/matched miRNA seed targets and 
+consensus polyA sites (AUAAA or AAUAAA); <br>
+- for highstab motifs, the number of motifs that matched lowstab 
+motifs (the final list of highstab motifs has been filtered for 
+these, while lowstab motifs have been filetred only for polyAs); <br>
+- which motif enrichment tool discovered the different motifs, Streme, Homer 
+and/or Fire; <br>
+- which "conditions" (ex: half-life, TE, ...).
+ 
+N.B. Some motifs may have been discovered by different tools/conditions, if 
+it is the case, the multiple source column will have several entries (cf tables
+below).
+
+
+
+```{r loading, include=FALSE}
+##Streme and Homer
+#Get list of motifs from Streme 
+getwd()
+files_streme = list.files(pattern = "streme.txt",recursive = T) 
+files_streme <- files_streme[!(grepl("tomtom.log", files_streme))]
+streme <- sapply(files_streme, readLines)
+streme <- lapply(streme, function(x) x[grep("MOTIF", x)])
+streme <- lapply(streme, data.frame)
+#lapply(streme, function(x) separate_rows(x[1], sep = " "))
+streme <- bind_rows(streme, .id = "source")
+streme$X..i.. <- str_remove_all(streme$X..i.., pattern = "MOTIF | STREME-\\d+| ")
+colnames(streme) <- c("source","motif_name")
+streme$source <- str_remove(streme$source, ".dir/streme.txt")
+
+#Get list of motifs from Streme 
+files_homer = list.files(pattern = "homerMotifs.all.motifs.meme",recursive = T) 
+files_homer <- files_homer[!(grepl("tomtom.log", files_homer))]
+homer <- sapply(files_homer, readLines)
+homer <- lapply(homer, function(x) x[grep("MOTIF", x)])
+homer <- lapply(homer, data.frame)
+homer <- bind_rows(homer, .id = "source")
+homer$X..i.. <- str_remove_all(homer$X..i.., pattern = "MOTIF | HOMER-\\d+| ")
+colnames(homer) <- c("source","motif_name")
+homer$source <- str_remove(homer$source, ".dir/homerMotifs.all.motifs.meme")
+
+#Get list of motifs merge
+files_merge = list.files(pattern = "_merge_homer_streme.meme",recursive = T) 
+files_merge <- files_merge[!(grepl(".log", files_merge))]
+merge_homer_streme <- sapply(files_merge, readLines)
+merge_homer_streme <- lapply(merge_homer_streme, function(x) x[grep("MOTIF", x)])
+merge_homer_streme <- lapply(merge_homer_streme, data.frame)
+merge_homer_streme <- bind_rows(merge_homer_streme, .id = NULL)
+merge_homer_streme$X..i.. <- str_remove_all(merge_homer_streme$X..i.., pattern = "MOTIF | HOMER-\\d+| STREME-\\d+| ")
+merge_homer_streme <- merge_homer_streme$X..i..
+
+#Keep track of the ones that merged together ones that merged together
+highstab_tomtom_streme_homer <- try(read.table("final_motifs/highstab_merge_homer_streme.motifs.tomtom", fill = T, header = T))
+  #Check if tomtom file is empty
+if (class(highstab_tomtom_streme_homer) != "try-error" | (any(is.na(highstab_tomtom_streme_homer)) == F) ) {
+  highstab_tomtom_streme_homer <- highstab_tomtom_streme_homer[1:(nrow(highstab_tomtom_streme_homer)-4),1:2]
+
+  #Loop merged motif in tomtom 
+  #List of merged motifs
+list_merged_high <- list()
+  for (x in merge_homer_streme) {
+    if (x %in% c(highstab_tomtom_streme_homer[,1], highstab_tomtom_streme_homer[,2])) {
+      together <- highstab_tomtom_streme_homer %>%
+        filter_all(any_vars(. %in% x))
+      together <- c(together[,1], together[,2])
+      list_merged_high <- append(list_merged_high, list(together))
+    }
+  }
+} else {list_merged_high <- list()}
+  
+lowstab_tomtom_streme_homer <- try(read.table("final_motifs/lowstab_merge_homer_streme.motifs.tomtom", fill = T, header = T))
+
+#Check if tomtom file is empty
+if (class(lowstab_tomtom_streme_homer) != "try-error" & (any(is.na(lowstab_tomtom_streme_homer)) == F) ) {
+  lowstab_tomtom_streme_homer <- lowstab_tomtom_streme_homer[1:(nrow(lowstab_tomtom_streme_homer)-4),c(1.2)]
+
+  #Loop merged motif in tomtom 
+  #List of merged motifs
+  list_merged_low <- list()
+  for (x in merge_homer_streme) {
+    if (x %in% c(highstab_tomtom_streme_homer[,1], highstab_tomtom_streme_homer[,2])) {
+      together <- highstab_tomtom_streme_homer %>%
+        filter_all(any_vars(. %in% x))
+      together <- c(together[,1], together[,2])
+      list_merged_low <- append(list_merged_low, list(together))
+    }
+  }
+} else {list_merged_low <- list()}
+
+
+##Fire
+files_fire = list.files(pattern = "allkmer.signif.motifs",recursive = T) 
+fire_source <- sapply(files_fire, readLines)
+fire_source <- lapply(fire_source, data.frame)
+fire_source <- bind_rows(fire_source, .id = "source")
+fire_source[c("motif_name", "sequence")]  <- str_split_fixed(fire_source$X..i.., "\\t",2)
+fire_source$X..i.. <- NULL
+fire_source$source <- str_remove_all(fire_source$source, pattern = "fire.dir/|.allkmer.signif.motifs| ")
+fire_source$source <- paste0(fire_source$source, "_fire")
+#Getting list of merges motifs high and low 
+fire_high <- fire_source %>% filter(str_detect(source, "high"))
+fire_low <- fire_source %>% filter(str_detect(source, "low"))
+
+#If no motifs in high
+if (nrow(fire_high) == 0){
+  print("No high motifs from fire")
+} else {
+  self_match <- sapply(fire_high$sequence, function(i) fire_high[str_detect(fire_high$sequence, i), 2])
+self_match <- self_match[lapply(self_match,length) >1]
+#Merge list of merged Homer/streme and Fire
+list_merged_high <- c(list_merged_high, self_match)
+}
+
+
+if (nrow(fire_low) == 0){
+  print("No low motifs from fire")
+} else {
+  self_match <- sapply(fire_low$sequence, function(i) fire_low[str_detect(fire_low$sequence, i), 2])
+  self_match <- self_match[lapply(self_match,length) >1]
+  #Merge list of merged Homer/streme and Fire
+  list_merged_low <- c(list_merged_low, self_match)
+}
+
+#Finally, merge Homer, streme and Fire
+all_possible_motifs_high <- bind_rows(homer, streme, .id = NULL) %>%
+  bind_rows(., fire_source[,1:2], .id = NULL) %>%
+  filter(grepl("high", source))
+all_possible_motifs_low <- bind_rows(homer, streme, .id = NULL) %>%
+  bind_rows(., fire_source[,1:2], .id = NULL) %>%
+  filter(grepl("low", source))
+
+
+```
+
+
+```{r create multiple table, include=FALSE}
+#Loading final table of the determining multiple source motifs
+highstab_final <- read.table("final_motifs/highstab_final_motifs.list",
+                              header = T)
+
+highstab_final_source <- c()
+for (m in highstab_final$name) {
+  its_name <- all_possible_motifs_high[all_possible_motifs_high$motif_name == m , 1]
+  its_merge <- Filter(function(x) m %in% x, list_merged_high) %>%
+    unlist() %>% unique()
+  #print(paste0("any other: ", its_merge))
+  
+  its_merge_names <- lapply(its_merge, 
+                            function(x)  
+                              all_possible_motifs_high[all_possible_motifs_high$motif_name == x , 1 ]) %>%
+    unlist() %>%  c(., its_name)  %>% unique()
+  highstab_final_source <- c(highstab_final_source, paste(its_merge_names, collapse = ", "))
+}
+highstab_final$multiple_source <- highstab_final_source
+#Some got a .1 I don't know why?? need to remove possible ones
+highstab_final$name <- str_remove(highstab_final$name, "\\.\\d+")
+
+lowstab_final <- read.table("final_motifs/lowstab_final_motifs.list", 
+                            header = T)
+#Some got a .1 I don't know why?? need to remove possible ones
+lowstab_final$name <- str_remove(lowstab_final$name, "\\.\\d+")
+
+
+lowstab_final_source <- c()
+for (m in lowstab_final$name) {
+  print("round")
+  its_name <- all_possible_motifs_low[all_possible_motifs_low$motif_name == m , 1]
+  its_merge <- Filter(function(x) m %in% x, list_merged_low) %>%
+    unlist() %>% unique()
+  #print(paste0("any other: ", its_merge))
+  
+  its_merge_names <- lapply(its_merge, 
+                            function(x)  
+                              all_possible_motifs_low[all_possible_motifs_low$motif_name == x , 1 ]) %>%
+    unlist() %>%  c(., its_name)  %>% unique()
+  lowstab_final_source <- c(lowstab_final_source, paste(its_merge_names, collapse = ", "))
+}
+
+lowstab_final$multiple_source <- lowstab_final_source
+```
+
+## "Highstability" motifs
+
+The pipeline discovered `r nrow(highstab_final)` "high" stability motifs.
+
+```{r highstablog, echo=FALSE}
+readLines("final_motifs/highstab_final_motifs.list.log")
+```
+(from file final_motifs/highstab_final_motifs.list.log)
+
+
+Table of high stability motifs and their origins: 
+```{r highstab, echo=FALSE}
+highstab_final
+```
+
+## "Lowstability" motifs
+
+The pipeline discovered `r nrow(lowstab_final)` "low" stability motifs.
+
+
+```{rlowstablog, echo=FALSE}
+readLines("final_motifs/lowstab_final_motifs.list.log")
+```
+(from file final_motifs/lowstab_final_motifs.list.log)
+
+
+Table of low stability motifs and their origins: 
+```{r lowstab, echo=FALSE}
+lowstab_final
+```
+
+
+Both these tables have been created in final_motifs as 
+final_motifs/low/highstab_final_motifs.list.source.
+
+If you would like more details on the different outputs genrated by the pipeline,
+see the readme file.
+
+
+```{r output, include= F}
+write.table(highstab_final,
+            "final_motifs/highstab_final_motifs.list.source", 
+            col.names = T,
+            row.names = F)
+
+write.table(lowstab_final, 
+            "final_motifs/lowstab_final_motifs.list.source", 
+            col.names = T,
+            row.names = F)
+```
+
+

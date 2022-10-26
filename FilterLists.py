@@ -1,6 +1,6 @@
 '''
-cgat_script_template.py - template for cgat scripts
-====================================================
+FilterLists.py - Filter lists of motifs
+=======================================
 
 :Author: Charlotte Vqndermeulen
 :Tags: Python
@@ -17,7 +17,7 @@ Usage
 
 Example::
 
-   python FilterLists.py
+   python FilterLists.py -I highstab.list -l lowstab.list
 
 Type::
 
@@ -27,7 +27,7 @@ for command line help.
 
 Command line options
 --------------------
-
+-l Table of lowstab motifs to remove from STDIN
 '''
 
 import sys

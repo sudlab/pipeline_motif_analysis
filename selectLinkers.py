@@ -1,6 +1,6 @@
 '''
-select_linkers - summarize infomation about a meme motif file
-=========================================================
+select_linkers - create appropriate files to select linkers
+===========================================================
 
 :Author: Charlotte Vandermeulen
 :Tags: Python
@@ -28,20 +28,23 @@ Add inputs to script, then run the the script.
           -l lowstab_motifs.list
           -m mirna_seed_sequences.list
           -r list_linkers.txt
-          -o /path/to/output/directory
+          -k kmer size (default is 6)
+          -o /path/to/output/director
 
 Output
 ------
 
-Outputs txt files of each linker and the number of hits they generated
-with : - lowstability motifs : RE_linkers_hits_lowstab.txt
+If a --RE-linkers is provided, the script outputs txt files of each linker and
+the number of hits they generated with : 
+       - lowstability motifs : RE_linkers_hits_lowstab.txt
        - miRNA seed motifs : RE_linkers_hits_seeds.txt
        - highstability motifs : RE_linkers_hits_highstab.txt
 If some linkers didn't create any hits (almost impossible), a txt file listing
 these linkers is outputted : RE_linkers_no_hits.txt
 
-A txt file showing "stats" for the number of hits each 6mer linkers
-with the different lists is created : stats_6mer_linkers.txt
+Moreover, a txt file showing "stats" for the number of hits each kmer linkers
+with the different lists is created (stats_6mer_linkers.txt) as well as a tsv
+file of each hits reuslts for each kmer linker (results_kmer_linkers.tsv)
 '''
 
 import sys
@@ -81,6 +84,16 @@ def main(argv=None):
                         help="List of linkers based on RE cohesive sites")
     parser.add_option("-o", "--output-directory", dest="out_dir", type=str,
                         help="Full path directory where outputs are written")
+    parser.add_option("-k", "--kmer-length", dest="kmer", type=int,
+                        help="Wanted length for linkers (when not RE linkers, default is 6)")
+    parser.set_defaults(
+        highstab=None,
+        lowstab=None,
+        mirseeds=False,
+        linkers=None,
+        out_dir=None,
+        kmer=6
+    )
 
     # add common options (-h/--help, ...) and parse command line
     (options, args) = E.start(parser, argv=argv)
@@ -88,79 +101,79 @@ def main(argv=None):
     high = open(options.highstab).readlines()
     low = open(options.lowstab).readlines()
     mirseed = open(options.mirseeds).readlines()
-    linkers = open(options.linkers).readlines()
-
-    #Screen wanted linkers
     high = set(s.strip() for s in high)
     low = set(s.strip() for s in low)
     mirseed = set(s.strip() for s in mirseed)
-    linkers = set(l.strip() for l in linkers)
 
-    #filter linkers that are in motifs low, high, or mir seeds
-    #Also stretches of 6 same nucleotide
-    filter_linkers = set()
-    for l in linkers:
-        if str(high).find(l) != -1:
-            filter_linkers.add(l)
-        if str(low).find(l) != -1:
-            filter_linkers.add(l)
-        if str(mirseed).find(l) != -1:
-            filter_linkers.add(l)
-        if l in {"AAAAAAAA","GGGGGGGG", "CCCCCCCC", "UUUUUUUU"} :
-            filter_linkers.add(l)
-    linkers = linkers - (filter_linkers)
+    #Screen wanted linkers if file is provided
+    if options.linkers != None: 
+        linkers = open(options.linkers).readlines()
+        linkers = set(l.strip() for l in linkers)
 
-    print("After filtering, there are ",len(linkers), " linkers.")
-
-    #Screen
-    print("Starting screening of recombined linkers")
-    highIterator = iOT.product(high, repeat = 2)
-    MatchLow = defaultdict(int)
-    MatchSeed = defaultdict(int)
-    MatchHigh = defaultdict(int)
-
-    for i,j in highIterator:
-        missingList = high -set([i,j])
+        #filter linkers that are in motifs low, high, or mir seeds
+        #Also stretches of 6 same nucleotide
+        filter_linkers = set()
         for l in linkers:
-            sequence = l + i + l
-            if checkInMotifs(sequence, low):
-                MatchLow[l] += 1
-            if checkInMotifs(sequence, missingList):
-                MatchHigh[l] += 1
-            if checkInMotifs(sequence, mirseed):
-                MatchSeed[l] += 1
+            if str(high).find(l) != -1:
+                filter_linkers.add(l)
+            if str(low).find(l) != -1:
+                filter_linkers.add(l)
+            if str(mirseed).find(l) != -1:
+                filter_linkers.add(l)
+            if l in {"AAAAAAAA","GGGGGGGG", "CCCCCCCC", "UUUUUUUU"} :
+                filter_linkers.add(l)
+        linkers = linkers - (filter_linkers)
 
-    NoMatchLowSeed = [l for l in linkers if l not in MatchLow.keys() | MatchSeed.keys()]
-    print("Finished screening of recombined linkers")
+        print("After filtering, there are ",len(linkers), " linkers.")
 
-    #Create ouputs for linkers
-    if len(NoMatchLowSeed) != 0:
-        print("Following linkers didn't create a match with low and seed motifs:")
-        print(NoMatchLowSeed)
-        out_OK = open(options.out_dir+"/RE_linkers_no_hits.txt", "w")
-        for l in NoMatchLowSeed:
-            out_ok.write(l+"\n")
-        out_OK.close()
+        #Screen
+        print("Starting screening of recombined linkers")
+        highIterator = iOT.product(high, repeat = 2)
+        MatchLow = defaultdict(int)
+        MatchSeed = defaultdict(int)
+        MatchHigh = defaultdict(int)
 
-    out_RE_linkers_low = open(options.out_dir+"/RE_linkers_hits_lowstab.txt", "w")
-    for l in MatchLow:
-        out_RE_linkers_low.write(l+":"+str(MatchLow[l])+"\n")
-    out_RE_linkers_low.close()
+        for i,j in highIterator:
+            missingList = high -set([i,j])
+            for l in linkers:
+                sequence = l + i + l
+                if checkInMotifs(sequence, low):
+                    MatchLow[l] += 1
+                if checkInMotifs(sequence, missingList):
+                    MatchHigh[l] += 1
+                if checkInMotifs(sequence, mirseed):
+                    MatchSeed[l] += 1
 
-    out_RE_linkers_seed = open(options.out_dir+"/RE_linkers_hits_seeds.txt", "w")
-    for l in MatchSeed:
-        out_RE_linkers_seed.write(l+":"+str(MatchSeed[l])+"\n")
-    out_RE_linkers_seed.close()
+        NoMatchLowSeed = [l for l in linkers if l not in MatchLow.keys() | MatchSeed.keys()]
+        print("Finished screening of recombined linkers")
 
-    out_RE_linkers_high = open(options.out_dir+"/RE_linkers_hits_highstab.txt", "w")
-    for l in MatchHigh:
-        out_RE_linkers_high.write(l+":"+str(MatchHigh[l])+"\n")
-    out_RE_linkers_high.close()
+        #Create ouputs for linkers
+        if len(NoMatchLowSeed) != 0:
+            print("Following linkers didn't create a match with low and seed motifs:")
+            print(NoMatchLowSeed)
+            out_OK = open(options.out_dir+"/RE_linkers_no_hits.txt", "w")
+            for l in NoMatchLowSeed:
+                out_ok.write(l+"\n")
+            out_OK.close()
 
+        out_RE_linkers_low = open(options.out_dir+"/RE_linkers_hits_lowstab.txt", "w")
+        for l in MatchLow:
+            out_RE_linkers_low.write(l+":"+str(MatchLow[l])+"\n")
+        out_RE_linkers_low.close()
 
-    ##Test for all possible 6mer linkers
+        out_RE_linkers_seed = open(options.out_dir+"/RE_linkers_hits_seeds.txt", "w")
+        for l in MatchSeed:
+            out_RE_linkers_seed.write(l+":"+str(MatchSeed[l])+"\n")
+        out_RE_linkers_seed.close()
+
+        out_RE_linkers_high = open(options.out_dir+"/RE_linkers_hits_highstab.txt", "w")
+        for l in MatchHigh:
+            out_RE_linkers_high.write(l+":"+str(MatchHigh[l])+"\n")
+        out_RE_linkers_high.close()
+
+    #Otherwise just do test for all possible kmer linkers
     #Redo linkers list
-    linkers = iOT.product("AUCG", repeat = 6)
+    linkers = iOT.product("AUCG", repeat = options.kmer)
     linkers = set("".join(l) for l in linkers)
     filter_linkers = set()
     for l in linkers:
@@ -176,7 +189,7 @@ def main(argv=None):
     #linkers = random.sample(linkers, 100)
 
     #Screen
-    print("Starting screening of all possible 6mer linkers")
+    print("Starting screening of all possible ", str(options.kmer), "mer linkers")
     highIterator = iOT.product(high, repeat = 2)
     MatchLow = defaultdict(int)
     MatchSeed = defaultdict(int)
@@ -192,7 +205,7 @@ def main(argv=None):
                 MatchHigh[l] += 1
             if checkInMotifs(sequence, mirseed):
                 MatchSeed[l] += 1
-    print("Finished screening of all possible 6mer linkers")
+    print("Finished screening of all possible ", str(options.kmer), "mer linkers")
     NoMatch = [l for l in linkers if l not in MatchLow.keys() & MatchSeed.keys()]
 
     #Write ouputs
@@ -200,20 +213,29 @@ def main(argv=None):
     mean_MatchSeed = sum(MatchSeed.values()) / len(MatchSeed)
     mean_MatchHigh = sum(MatchHigh.values()) / len(MatchHigh)
 
-    out2 = open(options.out_dir+"/stats_6mer_linkers.txt", "w")
-    out2.write("Max number of hits for a lowstab motif (6mer linkers): "+str(max(MatchLow.values()))+"\n")
-    out2.write("Min number of hits for a lowstab motif (6mer linkers): "+ str(min(MatchLow.values()))+ "\n")
-    out2.write("Mean number of hits for a lowstab motif (6mer linkers): "+ str(mean_MatchLow)+ "\n")
+    out2 = open(options.out_dir+"/stats_"+str(options.kmer)+"_linkers.txt", "w")
+    out2.write("Max number of hits for a lowstab motif ("+str(options.kmer)+"mer linkers): "+str(max(MatchLow.values()))+"\n")
+    out2.write("Min number of hits for a lowstab motif ("+str(options.kmer)+"mer linkers): "+ str(min(MatchLow.values()))+ "\n")
+    out2.write("Mean number of hits for a lowstab motif ("+str(options.kmer)+"mer linkers): "+ str(mean_MatchLow)+ "\n")
 
-    out2.write("Max number of hits for a seed motif (6mer linkers): "+ str(max(MatchSeed.values()))+ "\n")
-    out2.write("Min number of hits for a seed motif (6mer linkers): "+ str(min(MatchSeed.values()))+ "\n")
-    out2.write("Mean number of hits for a seed motif (6mer linkers): "+ str(mean_MatchSeed)+ "\n")
+    out2.write("Max number of hits for a seed motif ("+str(options.kmer)+"mer linkers): "+ str(max(MatchSeed.values()))+ "\n")
+    out2.write("Min number of hits for a seed motif ("+str(options.kmer)+"mer linkers): "+ str(min(MatchSeed.values()))+ "\n")
+    out2.write("Mean number of hits for a seed motif ("+str(options.kmer)+"mer linkers): "+ str(mean_MatchSeed)+ "\n")
 
-    out2.write("Max number of hits for a highstab motif (6mer linkers): "+ str(max(MatchHigh.values()))+ "\n")
-    out2.write("Min number of hits for a highstab motif (6mer linkers): "+ str(min(MatchHigh.values()))+ "\n")
-    out2.write("Mean number of hits for a highstab motif (6mer linkers): "+ str(mean_MatchHigh)+ "\n")
+    out2.write("Max number of hits for a highstab motif ("+str(options.kmer)+"mer linkers): "+ str(max(MatchHigh.values()))+ "\n")
+    out2.write("Min number of hits for a highstab motif ("+str(options.kmer)+"mer linkers): "+ str(min(MatchHigh.values()))+ "\n")
+    out2.write("Mean number of hits for a highstab motif ("+str(options.kmer)+"mer linkers): "+ str(mean_MatchHigh)+ "\n")
 
     out2.close()
+
+    out3 = open(options.out_dir+"/results_"+str(options.kmer)+"mer_linkers.tsv", "w")
+    out3.write("linker"+"\t"+"hit_seeds"+"\t"+"hits_lowstab"+"hits_highstab"+"\n")
+    for l in linkers:
+        if l in NoMatch:
+            out3.write(str(l)+": No hits"+"\n")
+        out3.write(str(l)+"\t"+str(MatchSeed[l])+"\t"+str(MatchLow[l])+"\t"+str(MatchHigh[l])+"\n")
+    out3.close()
+
     #args.stdout
     #
     # write footer and output benchmark information.

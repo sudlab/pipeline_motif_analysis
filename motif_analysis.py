@@ -5,10 +5,19 @@ motif_analysis.py
 Overview
 ========
 
-This pipeline is meant to be ran after the pipeline pipeline_slamdunk_umis.
+This pipeline can be run after the pipeline pipeline_slamdunk_umis but it is 
+not necessary.
 First, the Rscripts for the LASSO regression have to be ran on their own.
 When bed files have been generated in appropriate directories, the
 pipeline_motif_analysis can be run.
+Afterwadrs, different python scripts exist out of the pipeline to get list of wanted 
+linkers to build libraries.
+They are meant to be used in this order:
+RE_recombined_sites.py (optional, need specific environment) -> selectLinkers.py ->
+createSequencesToOrder.py.
+
+A report of the pipeline can be built using build_report after finishing the 
+full pipeline.
 
 files :file:``pipeline.yml` and :file:`conf.py`.
 
@@ -17,6 +26,11 @@ Usage
 
 See :ref:`PipelineSettingUp` and :ref:`PipelineRunning` on general
 information how to use CGAT pipelines.
+
+Run the pipeline with `python [path_to_repo]/motif_analysis.py make full -v5`.
+
+Run the report render (after doing full): 
+`python [path_to_repo]/motif_analysis.py make build_report -v5`
 
 Configuration
 -------------
@@ -158,6 +172,8 @@ Once this pipeline has been run, you can then run merge_motifs.Rmd to merge all
 motif sequences from the different pipeline runs and gerenate a general list of
 highstab and lowstab motifs. Then the python scrypts RE_recombined_sites.py 
 and/or select_linkers.py can be run to generate linkers.
+
+The report render ouputs in final_motifs pipeline_report.html and associated files.
 
 Code
 ====
@@ -526,5 +542,29 @@ def memeToList(infiles, outfile):
 def full():
     '''Later alligator'''
     pass
+
+@follows(memeToList)
+@originate("final_motifs/pipeline_report.html")
+def renderReport(infile):
+    '''build pipeline report'''
+    script_path = os.path.join((os.path.dirname(__file__)),
+                               "Rscripts",
+                               "report_pipeline.Rmd")
+    path_directory = os.path.abspath(os.getcwd())
+    #Sys.setenv(RSTUDIO_PANDOC="/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/charlotte_cgat/env/bin/pandoc"); 
+    statement = '''
+    Rscript -e 
+    'rmarkdown::render(input = "%(script_path)s",
+                       knit_root_dir = "%(path_directory)s",                        
+                       output_file = "%(path_directory)s/%(infile)s")'
+    '''
+    P.run(statement) 
+
+
+@follows(renderReport)
+def build_report():
+    '''Later alligator'''
+    pass
+
 
 P.main()

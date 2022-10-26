@@ -1,6 +1,6 @@
 '''
-RE_recombined_sites - summarize infomation about a meme motif file
-=========================================================
+RE_recombined_sites - create linkers from RE with cohesive ends
+===============================================================
 
 :Author: Charlotte Vandermeulen
 :Tags: Python

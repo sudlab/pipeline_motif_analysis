@@ -1,11 +1,19 @@
 # pipeline_motif_analysis
 
-This pipeline is meant to be ran after the pipeline pipeline_slamdunk_umis.
+This pipeline can be run after the pipeline pipeline_slamdunk_umis but it is 
+not necessary.
 First, the Rscripts for the LASSO regression have to be ran on their own.
 When bed files have been generated in appropriate directories, the
 pipeline_motif_analysis can be run.
 
+Afterwadrs, different python scripts exist out of the pipeline to get list of wanted 
+linkers to build libraries.
+They are meant to be used in this order:
+RE_recombined_sites.py (optional, need specific environment) -> selectLinkers.py ->
+createSequencesToOrder.py.
 
+A report of the pipeline can be built using build_report after finishing the 
+full pipeline.
 
 ## The pipeline performs the following:
    * Run STREME on highly stable and lowly stable sequences
@@ -124,6 +132,8 @@ Merged motifs from Homer and Streme, similar ones have been clustered using tomt
 Output obtained from running tomtom on the merge motifs originating from homer and streme
 highstab_merge_homer_streme.meme.log is the tomtom output log.
 
+The report render ouputs in final_motifs pipeline_report.html and associated files.
+
 
 ## Requirements
 
@@ -152,6 +162,9 @@ Modify the pipeline.yml according to your project (specify annotation database a
 
 ## Pipeline use
 Run the pipeline with `python [path_to_repo]/motif_analysis.py make full -v5`.
+
+Run the report render (after doinf full): 
+`python [path_to_repo]/motif_analysis.py make build_report -v5`
 
 For running the pipeline on a large set of samples, submit the pipeline onto the cluster (sharc), using a submit_pipeline custom script.
 
