@@ -37,8 +37,9 @@ option_list = list(
 
 arguments <- parse_args(OptionParser(option_list = option_list))
 
-setwd("/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr_newUTRS/slam_highest_exons/motif_analysis/one_transcript")
+#setwd("/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr_newUTRS/slam_highest_exons/motif_analysis/one_transcript")
 #setwd("/mnt/sharc/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/cho_slam/slam_picr_newUTRS/slam_highest_exons/motif_analysis/new_lasso/all_transcripts")
+# setwd("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_tripseq/motif_analysis/all_transcripts/")
 # arguments <- data.frame(fire = "fire.dir/highstab.allkmer.fireMotifs",
 #                         input = "final_motifs/highstab_merge_homer_streme.meme",
 #                         miRNA_seeds = "/mnt/sharc/shared/sudlab1/General/mirror/meme_motif_db/motif_databases/MIRBASE/22/Homo_sapiens_hsa.seeds.meme",

@@ -183,9 +183,9 @@ highstab_final$multiple_source <- highstab_final_source
 #Some got a .1 I don't know why?? need to remove possible ones
 highstab_final$name <- str_remove(highstab_final$name, "\\.\\d+")
 
+
 lowstab_final <- read.table("final_motifs/lowstab_final_motifs.list", 
                             header = T)
-#Some got a .1 I don't know why?? need to remove possible ones
 lowstab_final$name <- str_remove(lowstab_final$name, "\\.\\d+")
 
 
