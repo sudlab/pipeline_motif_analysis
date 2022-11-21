@@ -257,6 +257,10 @@ def streme(infiles, outfiles):
     P.run([statement,  statement2],
     job_memory="6G",
     job_threads=1)
+    #If Streme didn't find any significant motifs, it didn't ouput it
+    for outf in outfiles:
+        if os.path.exists(outf) == False:
+            IOTools.touch_file(outf)
 
 
 #HOMER
@@ -328,9 +332,12 @@ def fire(infiles, outfiles):
         ''' % locals()
         statements.append(statement)
     P.run(statements,
-    job_memory="10G",
+    job_memory="12G",
     job_threads=1)
-
+    #If Fire didn't find any significant motifs, it didn't ouput it
+    for outf in outfiles:
+        if os.path.exists(outf) == False:
+            IOTools.touch_file(outf)
 
 @follows(getfasta)
 @transform("background.fasta",
@@ -370,14 +377,18 @@ def homer_to_meme(infiles, outfile):
            [r"\1\2_highstab.signif.motifs", r"\1\2_lowstab.signif.motifs"])
 def extractFire(infile, outfiles):
     '''Extract significant motifs from FIRE enriched in top or bottom bin'''
-    script_path = os.path.join((os.path.dirname(__file__)),
-                               "Rscripts",
-                               "extract_fire_motifs.R")
-    statement = '''
-    Rscript %(script_path)s
-    -f %(infile)s
-    '''
-    P.run(statement)
+    if (IOTools.is_empty(infile)):
+        for outf in outfiles:
+            IOTools.touch_file(outf)
+    else:
+        script_path = os.path.join((os.path.dirname(__file__)),
+                                "Rscripts",
+                                "extract_fire_motifs.R")
+        statement = '''
+        Rscript %(script_path)s
+        -f %(infile)s
+        '''
+        P.run(statement)
 
 @follows(mkdir("fire.dir"))
 @collate(extractFire,
@@ -458,6 +469,7 @@ def tomtom_combine(infiles, outfile):
         IOTools.touch_file(outfile)
         return
     if len(motif_filtered) == 1 :
+        motif_filtered = motif_filtered[0]
         E.debug("Only motifs for ", str(motif_filtered))
         statement = '''
         mv %(motif_filtered)s %(outfile)s
@@ -494,13 +506,16 @@ def TomtomHighVSlow(infiles, outfile):
     tomtom_log = outfile+".log"
     E.debug(infiles)
     motif1, motif2 = infiles
-    qval = PARAMS["thresh_final"]
-    statement = '''
-    tomtom -verbosity 1 -text -norc -thresh %(qval)s
-    %(motif1)s %(motif2)s
-    2> %(tomtom_log)s | sed 's/#//' > %(outfile)s
-    '''
-    P.run(statement)
+    if (IOTools.is_empty(motif1) | IOTools.is_empty(motif2)):
+        IOTools.touch_file(outfile)
+    else:
+        qval = PARAMS["thresh_final"]
+        statement = '''
+        tomtom -verbosity 1 -text -norc -thresh %(qval)s
+        %(motif1)s %(motif2)s
+        2> %(tomtom_log)s | sed 's/#//' > %(outfile)s
+        '''
+        P.run(statement)
 
 
 @collate([tomtom_combine, removeRedundantFire],
@@ -552,7 +567,7 @@ def renderReport(infile):
                                "report_pipeline.Rmd")
     path_directory = os.path.abspath(os.getcwd())
     #Sys.setenv(RSTUDIO_PANDOC="/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/charlotte_cgat/env/bin/pandoc");
-    #'Sys.setenv(RSTUDIO_PANDOC="/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/env/bin/pandoc"); 
+    #'Sys.setenv(RSTUDIO_PANDOC="/shared/sudlab1/General/projects/SLAMseq_CHO_Mikayla/env/bin/pandoc");
     statement = '''
     Rscript -e
     'rmarkdown::render(input = "%(script_path)s",

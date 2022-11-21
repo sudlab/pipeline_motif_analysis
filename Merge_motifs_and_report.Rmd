@@ -16,7 +16,7 @@ library(Biostrings)
 library(msa)
 library(igraph)
 
-out_dir = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/final_linkers/"
+out_dir = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/final_linkers3/"
 ```
 
 ## Coding 
@@ -46,7 +46,7 @@ hepg2_slam_one_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/Syn
 hepg2_slam_all_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/all_transcripts/final_motifs/highstab_final_motifs.list.source", header = T, sep = " ")
 hepg2_slam_all_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_slam/motif_analysis/all_transcripts/final_motifs/lowstab_final_motifs.list.source", header = T, sep = " ")
 
-hepg2_tripseq_one_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/one_transcript/final_motifs/highstab_final_motifs.list.source", header = T, sep = " ")
+hepg2_tripseq_one_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/one_transcript//final_motifs/highstab_final_motifs.list.source", header = T, sep = " ")
 hepg2_tripseq_one_low <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/one_transcript/final_motifs/lowstab_final_motifs.list.source", header = T, sep = " ")
 
 hepg2_tripseq_all_high <- read.delim("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/hepg2_tripseq/motif_analysis/all_transcripts/final_motifs/highstab_final_motifs.list.source", header =T, sep = " ")
@@ -131,7 +131,7 @@ for (i in 1:length(highstab_seq)) {
     i_j_align <- i_j_align <- align_my_seq(the_i, the_j, 
                               method = "overlap",
                               #mis = -50,
-                              mis = -3,
+                              mis = -6,
                               gap = 20,
                               score = T)
     overlap[i,j] <- i_j_align
@@ -167,72 +167,106 @@ lapply(groups_overlap[lapply(groups_overlap, length) > 1], function(x) print(c(p
 
 
 Create table of clustered motifs, check special cases.
-The rule here is that I'm gonna take the consensus, or the one that was discovered 
-several times in the pipelines, or if it contains the other motifs except 1 base.
+I manually select the consensus between clustered motifs, because I'm not 
+satisfied with taking the consensus (and for some of them it just doesn't work).
+To select the motif I keep, or I kept the consensus, or I selected the ones that 
+comes from several courses (tool, ranking or pipeline).
+There were also 2 special cases, of motifs that clustered but when doing 
+multiple aligment you could clearly see 2 groups or more so I separated them.
 
-```{r, check msa}
+Below you have the df I created with a column including the original motifs, 
+and a final column being the consensus/final motif chosen for a cluster.
+Each line (and a number associated) represent a group, each group as a line in
+the original and final column.
+
+You also have the msa of the 2 special cases that show why I wanted to separate 
+these clusters.
+
+
+```{r check msa, echo = FALSE}
 
 clustered <- data.frame(
-  original = c("AUAUUUAGC", "AAAUAUUU", #1
-               "UCAGCGC", "CAGCGCCC", #2
-               "CCCCUGGC", "GGGCCCCCUG" ,"GGCCCUGGGCCC", #3
+  original = c("UCAGCGC", "CAGCGCCC", #1
+               "CCCCUGGC", "GGGCCCCCUG" ,"GGCCCUGGGCCC", #2
+               "GGAGGGGC", "GGGAGGGG","GGCAGGCCCA", "GGAGGGGGCAGG", "CCGGCAGG", #3
                "GGGCAGCAGAG", "GGGAGGGCAGCA", "CCAGAGGGCAG", #4
                "UGGGGGC", "GGGGGCUCUGCC", #5
-               "GGCAGGCCCA", "GGAGGGGGCAGG", "CCGGCAGG", #6
-               "AAAUUAUA", "AAUUAUAAG", #7
-               "UAAUACAUAU", "AUAAUACA", #8
-               "AAUUUUCA", "AUUUUCAGUU", #9
-               "UUUAAUUU", "UAAUUUAU", #10
-               "UAUUUUAC", "UUUUACU", #11
-               "UUUUUAAAAA", "CUUUUAAAAA", #12
-               "UCAGCGC", "CAGCGCCC", #13
-               #Special cases
-               "CUGUCCCCAGC", "CUGCCCCCAGC", #a
+               "AAAUUAUA", "AAUUAUAAG", #6
+               "UAAUACAUAU", "AUAAUACA", #7
+               "AAUUUUCA", "AUUUUCAGUU", #8
+               "UUUAAUUU", "UAAUUUAU", "AAACUAAUUU", "AAUCUAAUUU", #9
+               "UAUUUUAC", "UUUGAUUUUA", "UAUGUACU", "UUUUACU", "UUUAUGUAAU", "UCAUUUUA", "AUUUUAUGUA", "AACUAUUUUA", #10
+               "UUAAAUGU", "AAUGUUUUAU", "UAAAUGUU", "UUUUAUCG", #11
+               "AAAAAUGGUC", "AAGUAAAAAU", "AAACAAAAAU", "AAUCAAAAAU", #12
+               "AGUUAAUUUG", "AAGUUAAU", #13
+               "UAAAUUUUGC", "UUUUGCUU", #13b
+               "UUAAAACUGGAC", "AAUUAAAA", #14
+               "AAACAAAUAU", "AAUCAAAUAU", "AAAUAUUUUUCU", #15
+               "UUUAAUUGUU", "AUUGUUUA", #16
+               "AUAACAAAUU", "UAUAACA", #17
+               #Special cases 1
+               "CUGUCCCCAGC", "CUGCCCCCAGC", #a v
                "GCAGCCCCCAG", "GGCAGCCC", #b
-               "CCAGGAAGAAAG", "CCCCAGGA" #c
+               "CCAGGAAGAAAG", "CCCCAGGA", #c
+               #case2
+               "UUUUGUUUUUAA", "UUUUUAAAUC","UUUUUAAAAA", "CUUUUAAAAA","UUUAAAAACA", #2a
+               "AAAAUUCAUU", "AAAAUUUAAA",  "AAAAUUAUUUC", "AAACAAAAUU", "AAUCAAAAUU" #2b
+               
                ),
-  final = c("AUAUUU", "AUAUUU", #1
-                "CAGCGC", "CAGCGC", #2
-                rep("CCCCUGGC", 3), #3
-                rep("GAGGGCAGCA", 3), #4
+  final = c(    "CAGCGCCC", "CAGCGCCC", #1 I changed this
+                rep("CCCCUGGC", 3), #2
+                rep("GGAGGGGGCAGG", 5), #3
+                 rep("GAGGGCAGCA", 3), #4
                 "GGGGGCUCUGCC","GGGGGCUCUGCC", #5
-                rep("GGAGGGGGCAGG", 3), #6
-                "AAUUAUA", "AAUUAUA", #7 
-                "UAAUACA", "UAAUACA", #8
-                "AUUUUCAGUU", "AUUUUCAGUU", #9
-                "UAAUUU", "UAAUUU", #10
-                "UUUUAC", "UUUUAC", #11
-                "UUUUAAAAA", "UUUUAAAAA", #12
-                "CAGCGC","CAGCGC", #13
+                "AAUUAUA", "AAUUAUA", #6
+                "UAAUACA", "UAAUACA", #7
+                "AUUUUCAGUU", "AUUUUCAGUU", #8
+                rep("UAAUUU",4), #9
+                rep("UCUAAUUU",8), #10
+                rep("AAUGUUUUAU",4), #11
+                rep("CAAAAAU", 4),#12
+                "AGUUAAUUUG", "AGUUAAUUUG", #13
+                rep("UUUUGC",2), #13b
+                "UUAAAACUGGAC","UUAAAACUGGAC", #14
+                rep("CAAAUAU",3), #15
+                rep("AUUGUU", 2), #16
+                rep("UAUAACA",2), #17
+                #SP1
                 "CUGUCCCCAGC","CUGUCCCCAGC", #keeping the one because discovered in 2 times
                 "GCAGCCCCCAG", "GCAGCCCCCAG", #keep longest
-                "CCAGGAAGAAAG", "CCAGGAAGAAAG" #keep longest
+                "CCAGGAAGAAAG", "CCAGGAAGAAAG", #keep longest
+                #Case 2
+                rep("UUUAAAAA",5), #2a
+                rep("CAAAAUU",5) #2b
                 )
 )
 
 #Special cases
-#"CCAGGAAGAAAG GCAGCCCCCAG GGCAGCCC CCCCAGGA CUGUCCCCAGC CUGCCCCCAGC"
-overlap[c("CCAGGAAGAAAG", "GCAGCCCCCAG", "GGCAGCCC", "CCCCAGGA", "CUGUCCCCAGC", "CUGCCCCCAGC"),
-        c("CCAGGAAGAAAG", "GCAGCCCCCAG", "GGCAGCCC", "CCCCAGGA", "CUGUCCCCAGC", "CUGCCCCCAGC")]
-
+#SP1 : "CCAGGAAGAAAG GCAGCCCCCAG GGCAGCCC CCCCAGGA CUGUCCCCAGC CUGCCCCCAGC"
+# overlap[c("CCAGGAAGAAAG", "GCAGCCCCCAG", "GGCAGCCC", "CCCCAGGA", "CUGUCCCCAGC", "CUGCCCCCAGC"),
+#         c("CCAGGAAGAAAG", "GCAGCCCCCAG", "GGCAGCCC", "CCCCAGGA", "CUGUCCCCAGC", "CUGCCCCCAGC")]
 my_msa(c("CCAGGAAGAAAG","GCAGCCCCCAG", "GGCAGCCC" ,"CCCCAGGA", "CUGUCCCCAGC", "CUGCCCCCAGC"), my_method = "ClustalOmega")
 #Separate in 3 groups
-#"CCAGGAAGAAAG" alone
-#
 my_msa(c("GCAGCCCCCAG", "GGCAGCCC"), my_method = "ClustalOmega")
 my_msa(c("CUGUCCCCAGC", "CUGCCCCCAGC"), my_method = "ClustalOmega")
 my_msa(c("CCAGGAAGAAAG", "CCCCAGGA"), my_method = "ClustalOmega")
+
+#SP2
+my_msa(c("UUUUGUUUUUAA", "UUUUUAAAUC","UUUUUAAAAA", "CUUUUAAAAA","UUUAAAAACA",
+          "AAAAUUCAUU", "AAAAUUUAAA",  "AAAAUUAUUUC", "AAACAAAAUU", "AAUCAAAAUU" ), my_method = "ClustalOmega")
+#Separate in 2 groups
+
 ```
 
 Filter highstab list of motifs
-```{r filter highstab}
+```{r filter highstab, echo = FALSE}
 highstab_seq <- highstab_seq[!(highstab_seq %in% clustered$original)] %>% 
   c(., clustered$final) %>% unique()
 ```
 
 Now for lowstab seq, I'm not gonna remove anything, just unique it, so I screen
 for every detected lowstab motif.
-```{r lowstab}
+```{r lowstab, echo = FALSE}
 lowstab_seq <- c(a549_slam_all_low[,2],
                   a549_slam_one_low[,2],
                   a549_tripseq_all_low[,2],
@@ -274,15 +308,41 @@ highstab_seq <- highstab_seq[!(highstab_seq %in% low_in_high_table$high_motif)]
 
 
 Create source tables
-
-```{r source 1}
+```{r within clus, echo = FALSE}
 ###Final source table
-highstab_filtering_table <- rbind(within_highstab, clustered)
+#If the clus original motif comes from a within one, add original to the 
+#clustered 
+clustered_in_within <- data.frame(
+  original = 0,
+  final = 0
+)
+for (i in 1:nrow(within_highstab)) {
+  if (within_highstab[i,"final"] %in% clustered$original) {
+    motif <- as.character(within_highstab[i,"original"])
+    final <- as.character(within_highstab[i,"final"])
+    clustered_in_within <- rbind(clustered_in_within,c(motif, clustered[clustered$original == final, "final"]))
+    }
+}
+clustered_in_within <- clustered_in_within[2:nrow(clustered_in_within),]
 
+#I merge them
+clustered_all_with_within <- rbind(clustered, clustered_in_within) %>% distinct()
+
+#And remove clustered within from within list
+within_highstab_noclus <- within_highstab[!(within_highstab$original %in% clustered_in_within$original),]
+
+#Now I can create the full highstab clustering source table 
+highstab_filtering_table <- rbind(clustered_all_with_within, within_highstab_noclus) %>% unique()
+```
+
+
+
+
+```{r sourcing, echo = FALSE}
 highstab_final_source <-separate_rows(highstab_matrix, multiple_source, sep = ",") %>%
   unique()
 
-highstab_final_source <- merge(highstab_final_source, highstab_filtering_table, by.x = "sequence", by.y = "original", all = T)
+highstab_final_source <- full_join(highstab_final_source, highstab_filtering_table, by = c("sequence" = "original"))
 
 print(c("This should return False: ", 
         any(is.na(highstab_final_source[,1:3]))))
@@ -292,39 +352,32 @@ print(c("This should return False: ",
 highstab_final_source[is.na(highstab_final_source[,"final"]),] -> test_high_not_clustered_not_within
 print(c("This should return True: ", 
       all(test_high_not_clustered_not_within$sequence %in% highstab_full)))
-#So all the ones that are there, that are not in highstab seq (final after clustering and within) are then in the lowstab motif sequence
 print(c("This should return True: ", 
-      all(test_high_not_clustered_not_within[!(test_high_not_clustered_not_within$sequence %in% highstab_seq),]$sequence %in% low_in_high_table$high_motif)))
-#And so the contrary is true
-print(c("This should return True: ", 
-      all(test_high_not_clustered_not_within[!(test_high_not_clustered_not_within$sequence %in% low_in_high_table$high_motif),]$sequence %in% highstab_seq)))
+      all(test_high_not_clustered_not_within$sequence %in% c(highstab_seq, low_in_high_table$high_motif))))
 
+#So since it's like that, I can just replace them 
 highstab_as_original <- c()
 for (i in 1:nrow(highstab_final_source)) {
   if (is.na(highstab_final_source[i,"final"])) {
-    highstab_as_original <- c(highstab_as_original, highstab_final_source[i,"sequence"])
-    highstab_final_source[i,"final"] <- highstab_final_source[i,"sequence"]
+     highstab_as_original <- c(highstab_as_original, highstab_final_source[i,"sequence"])
+     highstab_final_source[i,"final"] <- highstab_final_source[i,"sequence"] 
   }
 }
 
+print(c("This should return False: ", 
+         any(is.na(highstab_final_source))))
+
 #Remove highstab  that match lowstab
 #First keep them
-hvsl_not_clustered <- highstab_final_source[highstab_final_source$sequence %in% low_in_high_table$high_motif,]
-hvsl_clustered <- highstab_final_source[highstab_final_source$final %in% low_in_high_table$high_motif,]
-high_in_low_final_source <- rbind(hvsl_not_clustered, hvsl_clustered) %>% unique()
+high_in_low_final_source <- highstab_final_source[highstab_final_source$final %in% low_in_high_table$high_motif,]
 
-clustered_motif_in_low <- high_in_low_final_source[!(high_in_low_final_source$sequence %in% low_in_high_table$high_motif),]
-print(c("This should return True: ", 
-      all(clustered_motif_in_low$sequence %in% clustered$original)))
-clustered_motif_in_low <- merge(clustered_motif_in_low, low_in_high_table, by.x = "final", by.y = "high_motif", all.x = T)
 high_in_low_final_source <- merge(high_in_low_final_source, low_in_high_table, by.x = "final", by.y = "high_motif", all.x = T)
-high_in_low_final_source <- rbind(high_in_low_final_source, clustered_motif_in_low) %>% unique()
 print(c("This should return True: ", 
       all(high_in_low_final_source$final %in% low_in_high_table$high_motif)))
 
 #Then remove
-highstab_final_source <- highstab_final_source[(!highstab_final_source$sequence %in% high_in_low_final_source$sequence),]
-highstab_final_source <- highstab_final_source[(!highstab_final_source$final %in% high_in_low_final_source$final),]
+highstab_final_source <- highstab_final_source[!(highstab_final_source$sequence %in% high_in_low_final_source$sequence),]
+highstab_final_source <- highstab_final_source[!(highstab_final_source$final %in% high_in_low_final_source$final),]
 
 #And finally, add low source for high in low table
 high_in_low_final_source <- merge(high_in_low_final_source, lowstab_matrix, by.x = "low_motif", by.y = "sequence",
@@ -334,23 +387,36 @@ high_in_low_final_source <- merge(high_in_low_final_source, lowstab_matrix, by.x
 colnames(lowstab_matrix) <- c("source_pipeline","sequence","source_in_pipeline")
 colnames(high_in_low_final_source) <- c("low_motif_match",
                                         "final_highstab",
-                                        "original_highstab",
                                         "source_pipeline_highstab" ,
+                                        "original_highstab",
                                         "source_in_pipeline_highstab",
                                         "source_pipeline_lowstab",
                                         "source_in_pipeline_lowstab" )
 
-colnames(highstab_final_source) <- c("original","source_pipeline" ,"source_in_pipeline" ,"final")
+colnames(highstab_final_source) <- c("source_pipeline" ,"original","source_in_pipeline" ,"final")
 
 #Last check
 print(c("This should return True: ", 
       all(highstab_seq %in% highstab_final_source$final)))
+print(c("This should return True: ", 
+      all(highstab_full[!(highstab_full %in% high_in_low_final_source$original_highstab)] %in% highstab_final_source$original)))
 
+print(c("This should return True: ", 
+      all(highstab_final_source$final %in% highstab_seq)))
 ```
 
-Now writing
+# Final check that highstab don't match mir seeds
 
-```{r editing low in high}
+```{r}
+mir <- read.table("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/miRmine/relevant_miRNA_a549_hepg2.seeds.list")
+match <- sapply(mir$V1, function(x) highstab_seq[str_detect(highstab_seq, x)])
+match <- match[lapply(match,length) >=1] %>% unlist()
+match
+```
+
+Now writing tables.
+
+```{r editing low in high, echo = FALSE, include = FALSE}
 write.table(highstab_seq, paste0(out_dir,"/highstab.list"),
             col.names = F, row.names = F, quote = F, sep = "\n")
 
@@ -377,8 +443,8 @@ write.table(high_in_low_final_source, paste0(out_dir,"/highstab_in_lowstab_motif
 
 At the begining we had: <br>
 
-* `r nrow(highstab_matrix)` motifs, `r length(highstab_full)` were unique and didn't contain stretches of 6 same nucleotides, <br>
-* `r nrow(lowstab_matrix)` motifs, `r length(lowstab_seq)` were unique and didn't contain stretches of 6 same nucleotides.
+* `r nrow(highstab_matrix)` high stab motifs, `r length(highstab_full)` were unique and didn't contain stretches of 6 same nucleotides, <br>
+* `r nrow(lowstab_matrix)` low stab motifs, `r length(lowstab_seq)` were unique and didn't contain stretches of 6 same nucleotides.
 
 After clustering and merging similar motifs, we had: <br>
 
@@ -389,7 +455,7 @@ After clustering and merging similar motifs, we had: <br>
 Finally, I just show that some motifs that were clustered generated motifs within
 other, I consider I can accept that:
 
-```{r last check}
+```{r last check, echo = FALSE}
 last_check <- data.frame(motif_within = 0,
                         this_motif = 0)
 for (i in highstab_seq) {
@@ -404,4 +470,3 @@ last_check <- separate_rows(last_check, this_motif, sep = " " ) %>% unique()
 last_check
 #clustered[clustered$final %in% last_check$original,]
 ```
-

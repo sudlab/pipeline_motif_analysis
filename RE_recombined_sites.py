@@ -34,28 +34,28 @@ import re
 from Bio import Seq
 
 #######START INPUTS###################
-name_ouput = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/list_linkers.txt"
-name_enzyme_RE_site_table = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/RE_sites_linkers.txt"
+name_ouput = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/final_linkers3/list_linkers.txt"
+name_enzyme_RE_site_table = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/final_linkers3/RE_sites_linkers.txt"
 #######Table of RE pairs#######
 enzymes_dict = {"Acc65I":["BsiWI", "BsrGI"],
 "AgeI":["AvaI", "BspEI", "SgrAI", "NgoMIV"],
 "AscI":["AflIII", "MluI"],
 "AsiSI":["BsiEI", "PacI"],
-"AvrII":["NheI", "SpeI", "Xbal"],
+"AvrII":["NheI", "SpeI", "XbaI"],
 "BamHI":["BclI", "BglII"],
-"BclI":["BstYI", "BglII", "Mbol"],
-"BspEI":["BsrFI", "SgrAaI", "Aval", "Xmal", "BsrFI", "NgoMIV"],
+"BclI":["BstYI", "BglII", "MboI"],
+"BspEI":["BsrFI", "SgrAI", "AvaI", "XmaI", "BsrFI", "NgoMIV"],
 "BssHII":["MluI", "AscI"],
-"BstBI":["Accl", "ClaI", "AciL", "BsaHI", "HinP1l", "HpaII", "NarI"],
-"ClaI":["Accl", "Acil", "AclL", "BsaHI", "HinP1l", "HpaII", "NarI"],
-"MfeI":["ApoL", "EcoRI"],
-"NarI":["Accl", "AclI,Taql-v2", "AciL", "HinP1l", "HpaII"],
+"BstBI":["AccI", "ClaI", "AciI", "BsaHI", "HinP1I", "HpaII", "NarI"],
+"ClaI":["AccI", "AciI", "AclI", "BsaHI", "HinP1I", "HpaII", "NarI"],
+"MfeI":["ApoI", "EcoRI"],
+"NarI":["AccI", "AclI","TaqI", "AciI", "HinP1I", "HpaII"],
 "NdeI":["AseI", "BfaI", "Csp6I", "MseI"],
-"NgoMIV":["BsaWI", "SgrAI", "AvaL", "Xmal", "BsaWI", "SgrAI"],
-"NheI":["SpeI", "Styl"],
+"NgoMIV":["BsaWI", "SgrAI", "AvaI", "XmaI", "BsaWI", "SgrAI"],
+"NheI":["SpeI", "StyI"],
 "NsiI":["BsiHKAI", "Bsp1286I", "PstI", "SbfI"],
 "NspI":["SphI"],
-"PciI":["BspHI", "Fatl", "Ncol"],
+"PciI":["BspHI", "FatI", "NcoI"],
 "PpuMI":["RsrII"],
 "PspOMI":["EaeI", "EagI", "NotI"],
 "PspXI":["SalI"],
@@ -63,10 +63,10 @@ enzymes_dict = {"Acc65I":["BsiWI", "BsrGI"],
 "SacII":["BsiEI"],
 "SalI":["XhoI"],
 "SbfI":["BsiHKAI", "Bsp1286I"],
-"SgrAI":["AvalI", "Xmal"],
-"SpeI":["StyI", "Xbal"],
-"XbaI":["NheI", "Styl"],
-"XmaI":["BsaWI2"]}
+"SgrAI":["AvaI", "XmaI"],
+"SpeI":["StyI", "XbaI"],
+"XbaI":["NheI", "StyI"],
+"XmaI":["BsaWI"]}
 ####### END INPUTS###################
 
 #Create list of pairs

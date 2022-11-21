@@ -12,7 +12,9 @@ option_list = list(
 
 arguments <- parse_args(OptionParser(option_list = option_list))
 
-#arguments <- data.frame(fire_path = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/all_transcripts/fire_halflife.txt.6mer_FIRE/RNA/fire_halflife.txt.6mer.signif.motifs.rep")
+# setwd("/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/random/all_transcripts/")
+# arguments <- data.frame(fire_path = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/random/all_transcripts/fire_random.txt.7mer_FIRE/RNA/fire_random.txt.7mer.signif.motifs.rep
+# ")
 
 outdir <- str_remove(arguments$fire_path, ".signif.motifs.rep")
 title <- str_split(outdir, ".txt")
@@ -25,9 +27,16 @@ signif.motifs.rep <- read.delim2(arguments$fire_path,
                                  head = F,
                                  #colClasses = c("character", rep("numeric", 7)),
                                  )
-consensus.motifs <- read.delim(str_replace(arguments$fire_path,".signif.motifs.rep", ".summary"),
+consensus.motifs <- try(read.delim(str_replace(arguments$fire_path,".signif.motifs.rep", ".summary"),
                                header = F) %>%
-  select(V1, V9)
+  select(V1, V9))
+
+if (class(consensus.motifs) == 'try-error') {
+  consensus.motifs <- read.delim(str_replace(arguments$fire_path,".signif.motifs.rep", ".signif"),
+                                     header = F) %>%
+                            select(V1, V8)
+  colnames(consensus.motifs) <- c("V1", "V9") 
+}
 
 #Have to do it like that cause it doesn't work with colClasses, I don't know why...
 signif.motifs.rep$V5 <- as.numeric(signif.motifs.rep$V5)
