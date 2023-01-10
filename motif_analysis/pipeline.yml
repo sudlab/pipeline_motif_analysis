@@ -5,6 +5,9 @@ genome: hg38_noalt
 # location of genome, needs to be set
 genome_dir: /shared/sudlab1/General/mirror/genomes/index
 
+#Start from bed files
+from_fasta: 1
+
 #STREME#
 # options, see streme --help
 e_value: 0.1

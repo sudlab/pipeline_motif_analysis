@@ -206,6 +206,7 @@ PARAMS = P.get_parameters(
      "pipeline.yml"])
 ########################
 
+@active_if(PARAMS["from_fasta"])
 @transform("*.bed",
            regex("(.+).bed"),
            r"\1.fasta")
@@ -217,6 +218,7 @@ def getfasta(infile, outfile):
     -fi %(genome_file)s
     -fo %(outfile)s
     -nameOnly
+    -s
     '''
     P.run(statement)
 

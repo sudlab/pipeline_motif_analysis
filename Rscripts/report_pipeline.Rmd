@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library("rmarkdown")
 library("tidyverse")
 #Rscript -e "rmarkdown::render(script_path,params=list(directory = path_of_pipeline))"
-#knitr::opts_knit$set(root.dir = "/mnt/sharc/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/a549_slam/motif_analysis/all_transcripts/")
+#knitr::opts_knit$set(root.dir = "/mnt/sharc/mnt/fastdata/bo1cv/a549_slam/strand_one")
 ```
 
 # Report of pipeline motif_analysis
@@ -121,15 +121,16 @@ files_fire = list.files(pattern = "allkmer.signif.motifs",recursive = T)
 fire_source <- sapply(files_fire, readLines)
 fire_source <- lapply(fire_source, data.frame)
 fire_source <- bind_rows(fire_source, .id = "source")
-fire_source[c("motif_name", "sequence")]  <- str_split_fixed(fire_source$X..i.., "\\t",2)
-fire_source$X..i.. <- NULL
-fire_source$source <- str_remove_all(fire_source$source, pattern = "fire.dir/|.allkmer.signif.motifs| ")
-fire_source$source <- paste0(fire_source$source, "_fire")
-#Getting list of merges motifs high and low 
-fire_high <- fire_source %>% filter(str_detect(source, "high"))
-fire_low <- fire_source %>% filter(str_detect(source, "low"))
-
-#If no motifs in high
+if (nrow(fire_source) > 0 ) {
+  fire_source[c("motif_name", "sequence")]  <- str_split_fixed(fire_source$X..i.., "\\t",2)
+  fire_source$X..i.. <- NULL
+  fire_source$source <- str_remove_all(fire_source$source, pattern = "fire.dir/|.allkmer.signif.motifs| ")
+  fire_source$source <- paste0(fire_source$source, "_fire")
+  #Getting list of merges motifs high and low 
+  fire_high <- fire_source %>% filter(str_detect(source, "high"))
+  fire_low <- fire_source %>% filter(str_detect(source, "low"))
+  
+  #If no motifs in high
 if (nrow(fire_high) == 0){
   print("No high motifs from fire")
 } else {
@@ -156,6 +157,17 @@ all_possible_motifs_high <- bind_rows(homer, streme, .id = NULL) %>%
 all_possible_motifs_low <- bind_rows(homer, streme, .id = NULL) %>%
   bind_rows(., fire_source[,1:2], .id = NULL) %>%
   filter(grepl("low", source))
+
+} else {
+  
+  #Finally, merge Homer and homer (fire empty)
+all_possible_motifs_high <- bind_rows(homer, streme, .id = NULL) %>%
+  filter(grepl("high", source))
+all_possible_motifs_low <- bind_rows(homer, streme, .id = NULL) %>%
+  filter(grepl("low", source))
+  
+}
+
 
 
 ```
