@@ -1,6 +1,11 @@
 library("optparse")
 library(stringr)
 
+###
+#This script has been adapted from https://gist.github.com/rtraborn/e395776b965398c54c4d
+###
+
+
 #Options parser
 option_list = list(
   make_option(c("-i", "--homer-input"),

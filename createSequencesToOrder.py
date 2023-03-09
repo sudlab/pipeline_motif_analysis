@@ -16,13 +16,14 @@ From - a linker sequence'
      - a list of motifs and
      - a table of RE and their sites (from RE_recombined_sites)
 
-Checks that the linker combined to the list of motifs doesn't recreate a 
+
+Checks that the linker combined to the list of motifs doesn't recreate a
 RE site for the 2 REs. If so, it stated which linker(s) are and they are removed
 from the output.
 
 The output correspond to sequences to order as:
 
-5' overhang1-motif-overhang2 3' 
+5' overhang1-motif-overhang2 3'
 and
 5' overhang3-RevMotif-overhang4 3'
 
@@ -47,10 +48,10 @@ from Bio import Seq
 
 
 #######START INPUTS###################
-Table_RE_sites = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/RE_sites_linkers.txt"
-out_seq = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/linker_motifs_sequences.txt"
-motifs = open("/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/4linkers/highstab.list").readlines()
-Linker = "TTCGTC"
+Table_RE_sites = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/correct_strandedness/linker/RE_sites_linkers.txt"
+out_seq = "/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/correct_strandedness/linker/best_UCAUGU/linker_motifs_sequences.txt"
+motifs = open("/shared/sudlab1/General/projects/SynthUTR_hepG2_a549/motif_merge_linkers/correct_strandedness/highstab_motifs_filtered.tsv").readlines()
+Linker = "TCATGT"
 ####### END INPUTS###################
 
 
@@ -125,7 +126,7 @@ for key in re_sites_pairs:
             continue
     else:
         similarOK = extend_ambiguous_dna(similar1)
-        
+
     #Get linker sequences
     if (cutindex1 < len(site1)/2 and
         cutindex2 < len(site2)/2):
@@ -159,7 +160,7 @@ for l in strip_motifs:
     else :
         list_motifs.add(l)
 
-#Check for BsaHi and BstBI sites in motifs 
+#Check for BsaHi and BstBI sites in motifs
 sequences_RE_sites = set()
 for re in possible_re_pairs:
     site1 = re_sites_pairs[re][0]
@@ -189,7 +190,6 @@ for re in possible_re_pairs:
     cutindex2 = site2.index("^")
     for m in list_motifs:
         forward = Linker[cutindex2:]+m+Linker[:cutindex2]
-        reverse = Seq.Seq(Linker[-cutindex1:]+m+Linker[:-cutindex1]).complement()
+        reverse = Seq.Seq(Linker[-cutindex1:]+m+Linker[:-cutindex1]).reverse_complement()
         outfile.write(str(forward)+"\t"+str(reverse)+"\n")
 outfile.close()
- 
